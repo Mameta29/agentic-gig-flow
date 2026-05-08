@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+
+:root {
+  --gigflow-pink: #ff3d8a;
+  --gigflow-blue: #0078d4;
+}
