@@ -1,0 +1,33 @@
+{
+  "name": "@gigflow/functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "func start",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gigflow/shared": "workspace:*",
+    "@azure/functions": "^4.5.1",
+    "@azure/identity": "^4.4.1",
+    "@azure/cosmos": "^4.1.1",
+    "@azure/keyvault-secrets": "^4.8.0",
+    "openai": "^4.68.4",
+    "viem": "^2.21.43",
+    "@octokit/rest": "^21.0.2",
+    "botbuilder": "^4.23.1",
+    "jose": "^5.9.6",
+    "pino": "^9.5.0",
+    "applicationinsights": "^3.4.0",
+    "zod": "^3.23.8",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2"
+  }
+}
