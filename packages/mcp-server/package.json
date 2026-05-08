@@ -1,0 +1,29 @@
+{
+  "name": "@gigflow/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gigflow/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@azure/cosmos": "^4.1.1",
+    "@azure/identity": "^4.4.1",
+    "hono": "^4.6.10",
+    "@hono/node-server": "^1.13.5",
+    "jose": "^5.9.6",
+    "pino": "^9.5.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "@types/node": "^20.16.11"
+  }
+}
