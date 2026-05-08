@@ -1,0 +1,37 @@
+// Application Insights / Log Analytics queries for the multi-agent demo.
+
+// 1. Full timeline for a single orderId
+let oid = "<orderId>";
+union customEvents, dependencies, requests, exceptions
+| where customDimensions.orderId == oid or customDimensions.correlation_id == oid
+| project timestamp, name, customDimensions
+| order by timestamp asc
+
+// 2. Average latency: Copilot -> bookkeeping completion
+customEvents
+| where name in ("copilot_request_received", "bookkeeping_completed")
+| extend orderId = tostring(customDimensions.orderId)
+| summarize start=minif(timestamp, name == "copilot_request_received"),
+            end=minif(timestamp, name == "bookkeeping_completed")
+  by orderId
+| extend latency_s = datetime_diff('second', end, start)
+| where isnotnull(latency_s)
+| summarize avg(latency_s), percentile(latency_s, 95)
+
+// 3. Settlement success rate (last 7d)
+customEvents
+| where timestamp > ago(7d)
+| where name in ("settlement_started", "settlement_completed", "settlement_failed")
+| summarize
+    started = countif(name == "settlement_started"),
+    succeeded = countif(name == "settlement_completed"),
+    failed = countif(name == "settlement_failed")
+| extend success_rate = todouble(succeeded) / started
+
+// 4. MCP tool usage by tenant
+customEvents
+| where name == "mcp_tool_called"
+| extend tenant = tostring(customDimensions.tenantId),
+         tool = tostring(customDimensions.tool)
+| summarize calls = count() by tool, tenant
+| order by calls desc

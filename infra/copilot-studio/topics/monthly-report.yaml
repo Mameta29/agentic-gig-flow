@@ -1,0 +1,35 @@
+topic: MonthlyReport
+trigger:
+  phrases:
+    - "@gigflow 月次レポート"
+    - "先月の業務委託費"
+    - "Q1 の累計"
+variables:
+  - name: question
+    type: string
+    captureFromUserMessage: true
+steps:
+  - kind: httpRequest
+    method: POST
+    url: "{{env.FABRIC_DATA_AGENT_URL}}"
+    headers:
+      Authorization: "Bearer {{user.accessTokenForFabric}}"
+      Content-Type: application/json
+    body: |
+      {
+        "query": "{{question}}",
+        "context": { "tenantId": "{{user.tenantId}}" }
+      }
+    storeAs: fabric
+  - kind: adaptiveCard
+    inline:
+      type: AdaptiveCard
+      version: "1.5"
+      body:
+        - type: TextBlock
+          text: "{{fabric.body.naturalLanguageAnswer}}"
+          wrap: true
+      actions:
+        - type: Action.OpenUrl
+          title: 📈 Power BI 詳細
+          url: "{{env.POWER_BI_REPORT_URL}}"

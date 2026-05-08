@@ -1,0 +1,19 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "Container",
+      "style": "good",
+      "items": [
+        { "type": "TextBlock", "text": "✅ 発注完了", "weight": "Bolder", "size": "Large" },
+        { "type": "TextBlock", "text": "GitHub Issue #${issueNumber} を作成しました。", "wrap": true }
+      ]
+    }
+  ],
+  "actions": [
+    { "type": "Action.OpenUrl", "title": "📋 Issue を開く", "url": "${issueUrl}" },
+    { "type": "Action.OpenUrl", "title": "📊 Dashboard", "url": "${env.DASHBOARD_URL}/orders/${orderId}" }
+  ]
+}

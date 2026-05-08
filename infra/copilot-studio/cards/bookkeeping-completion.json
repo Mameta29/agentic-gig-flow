@@ -1,0 +1,39 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "Container",
+      "style": "good",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "✅ ${workerDisplayName} 様への ${amountJpyc} JPYC のお支払いが完了しました。",
+          "weight": "Bolder",
+          "size": "Medium",
+          "wrap": true
+        }
+      ]
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "💰 仕訳", "value": "借方 ${journal.debit.account} ${journal.debit.amount} / 貸方 ${journal.credit.account} ${journal.credit.amount}" },
+        { "title": "📝 源泉徴収", "value": "${if(withholding.applies, withholding.rate + '%', 'なし')}" },
+        { "title": "📊 TxHash", "value": "${txHash}" }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "経理処理は完了しています。",
+      "isSubtle": true,
+      "wrap": true
+    }
+  ],
+  "actions": [
+    { "type": "Action.OpenUrl", "title": "📄 支払調書", "url": "${dashboardUrl}/orders/${orderId}/payment-statement" },
+    { "type": "Action.OpenUrl", "title": "🔗 Polygonscan", "url": "https://polygonscan.com/tx/${txHash}" },
+    { "type": "Action.OpenUrl", "title": "📈 Power BI 月次", "url": "${powerBiUrl}" }
+  ]
+}

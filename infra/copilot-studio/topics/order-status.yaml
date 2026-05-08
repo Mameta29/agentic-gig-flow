@@ -1,0 +1,19 @@
+topic: OrderStatus
+trigger:
+  phrases:
+    - "@gigflow 状況"
+    - "@gigflow 進捗"
+    - "の状態は"
+steps:
+  - kind: httpRequest
+    method: GET
+    url: "{{env.FUNCTIONS_BASE_URL}}/api/orders/list?limit=10"
+    headers:
+      Authorization: "Bearer {{user.accessToken}}"
+    storeAs: response
+  - kind: message
+    text: |
+      最近の発注 {{response.body.orders.length}} 件:
+      {{#each response.body.orders}}
+      - {{this.description}} ({{this.status}}) — @{{this.workerGithubLogin}} / {{this.amountJpyc}} JPYC
+      {{/each}}

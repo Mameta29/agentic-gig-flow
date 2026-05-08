@@ -1,0 +1,11 @@
+// Row-level security role: TenantIsolation
+// Apply to orders table; relies on tenants table being mirrored too.
+orders[companyId] IN
+  CALCULATETABLE(
+    VALUES(tenants[id]),
+    tenants[domain] = SUBSTITUTE(
+      USERPRINCIPALNAME(),
+      LEFT(USERPRINCIPALNAME(), FIND("@", USERPRINCIPALNAME())),
+      ""
+    )
+  )

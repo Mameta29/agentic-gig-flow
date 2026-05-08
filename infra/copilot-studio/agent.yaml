@@ -1,0 +1,18 @@
+name: gigflow
+displayName: gigflow
+description: 業務委託の発注・状態確認・経理問合せを自動化するエージェント
+instructions: |
+  あなたは「gigflow」エージェント。中小企業の PM が業務委託発注を依頼してきたら、
+  発注内容を構造化し、Adaptive Card で確認を取り、承認されたら gigflow Functions API
+  に発注を送信する。発注状況や経理レポートの問合せにも応える。
+  税務判断や送金可否の最終判断は必ずユーザーに確認する。
+authentication:
+  mode: manual
+  provider: microsoft-entra-id-v2
+  scopes:
+    - api://gigflow-functions/orders.write
+    - api://gigflow-mcp/mcp.read
+    - api://gigflow-fabric/data.read
+    - offline_access
+channels:
+  - teams

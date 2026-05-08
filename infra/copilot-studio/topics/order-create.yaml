@@ -1,0 +1,61 @@
+topic: OrderCreate
+trigger:
+  phrases:
+    - "@gigflow 発注"
+    - "@gigflow さんに依頼"
+    - "@gigflow お願い"
+  intent: |
+    Detect when the user wants to place a new business outsourcing order.
+variables:
+  - name: workerName
+    type: string
+    required: true
+    prompt: 受注者の名前を教えてください。
+  - name: workDescription
+    type: string
+    required: true
+    prompt: 業務内容を教えてください。
+  - name: amountJpyc
+    type: number
+    required: true
+    prompt: 報酬は何 JPYC ですか?
+  - name: deadline
+    type: string
+    required: true
+    prompt: 期日は (例: 2週間後 / 5月末)?
+  - name: repository
+    type: string
+    required: false
+    default: "{{tenant.defaultRepository}}"
+steps:
+  - kind: message
+    text: 発注内容を確認させてください。
+  - kind: adaptiveCard
+    cardRef: cards/order-confirmation.json
+    expectAction: true
+    storeAs: cardResult
+  - kind: condition
+    when: "cardResult.action == 'approve'"
+    then:
+      - kind: httpRequest
+        method: POST
+        url: "{{env.FUNCTIONS_BASE_URL}}/api/copilot/webhook"
+        headers:
+          Authorization: "Bearer {{user.accessToken}}"
+          Content-Type: application/json
+        body: |
+          {
+            "rawDescription": "{{workerName}} さんに「{{workDescription}}」を依頼。報酬 {{amountJpyc}} JPYC、期日 {{deadline}}、リポジトリ {{repository}}。",
+            "today": "{{utcNow().slice(0,10)}}",
+            "conversationReference": {{conversationReference}}
+          }
+        storeAs: response
+      - kind: adaptiveCard
+        cardRef: cards/order-completed.json
+        bind:
+          issueNumber: "{{response.body.issueNumber}}"
+          issueUrl: "{{response.body.issueUrl}}"
+          orderId: "{{response.body.orderId}}"
+    else:
+      - kind: message
+        text: キャンセルしました。

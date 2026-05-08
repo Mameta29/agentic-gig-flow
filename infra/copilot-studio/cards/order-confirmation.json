@@ -1,0 +1,30 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.5",
+  "body": [
+    { "type": "TextBlock", "text": "発注内容の確認", "weight": "Bolder", "size": "Large" },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "受注者", "value": "${workerName}" },
+        { "title": "業務内容", "value": "${workDescription}" },
+        { "title": "報酬", "value": "${amountJpyc} JPYC" },
+        { "title": "期日", "value": "${deadline}" },
+        { "title": "リポジトリ", "value": "${repository}" }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "この内容で発注すると、Contract Agent が GitHub Issue を作成し、PR がマージされた瞬間に JPYC が自動送金されます。",
+      "wrap": true,
+      "size": "Small",
+      "color": "Accent"
+    }
+  ],
+  "actions": [
+    { "type": "Action.Submit", "title": "✅ 承認", "data": { "action": "approve" }, "style": "positive" },
+    { "type": "Action.Submit", "title": "✏ 編集", "data": { "action": "edit" } },
+    { "type": "Action.Submit", "title": "❌ キャンセル", "data": { "action": "cancel" }, "style": "destructive" }
+  ]
+}

@@ -1,0 +1,73 @@
+dataAgent:
+  name: da-gigflow
+  workspace: ws-gigflow
+  semanticModel: sm-gigflow
+schema:
+  tables:
+    - name: orders
+      description: Business outsourcing contracts (one row per order)
+      columns:
+        - name: id
+          type: string
+          description: Unique order id (UUIDv4)
+        - name: companyId
+          type: string
+          description: Tenant id (Entra tenantId). Used for RLS.
+        - name: workerGithubLogin
+          type: string
+        - name: description
+          type: string
+        - name: amountJpyc
+          type: integer
+          description: 1 JPYC == 1 JPY. Always integer.
+        - name: status
+          type: string
+          enum: [created, in_progress, pr_opened, review_failed, review_passed, settled, bookkept, cancelled]
+        - name: createdAt
+          type: datetime
+        - name: settledAt
+          type: datetime
+          nullable: true
+        - name: txHash
+          type: string
+          nullable: true
+        - name: bookkeepingArtifacts.withholding.applies
+          type: boolean
+          nullable: true
+  measures:
+    - name: TotalPayments
+      formula: SUM(orders[amountJpyc])
+    - name: SettledPayments
+      formula: |
+        CALCULATE(
+          [TotalPayments],
+          orders[status] = "settled" || orders[status] = "bookkept"
+        )
+    - name: AvgLeadTimeHours
+      formula: |
+        AVERAGEX(
+          orders,
+          DATEDIFF(orders[createdAt], orders[settledAt], HOUR)
+        )
+    - name: WithholdingTotal
+      formula: |
+        CALCULATE(
+          [TotalPayments],
+          orders[bookkeepingArtifacts.withholding.applies] = TRUE
+        )
+fewShot:
+  - q: 先月の業務委託費の合計は?
+    a: SettledPayments を YearMonth = LASTMONTH でフィルタ
+  - q: Sato さんへの累計は?
+    a: workerGithubLogin = 'sato-taro' の TotalPayments
+  - q: 源泉徴収あり/なしの内訳
+    a: WithholdingTotal vs (TotalPayments - WithholdingTotal)
+  - q: 平均リードタイムは?
+    a: AvgLeadTimeHours
+description: |
+  The "orders" table contains business outsourcing contracts.
+  Each row is a single contract from a Japanese SME (companyId) to a freelance worker.
+  Amounts are in JPYC (Japanese Yen Coin), an integer where 1 JPYC = 1 JPY.
+  "status" lifecycle: created → in_progress → pr_opened → review_passed → settled → bookkept.
+  "settled" means JPYC has been transferred on Polygon.
+  withholding.applies is whether Japanese withholding tax was deducted.
