@@ -143,6 +143,7 @@ pnpm --filter mcp-server dev     # gigflow-mcp Server
 | [`docs/09-mcp-server.md`](docs/09-mcp-server.md) | gigflow-mcp サーバ仕様 |
 | [`docs/10-entra-id.md`](docs/10-entra-id.md) | Entra ID マルチテナント設計 |
 | [`docs/11-fabric.md`](docs/11-fabric.md) | Fabric Data Agent + Power BI |
+| [`docs/12-deployment-guide.md`](docs/12-deployment-guide.md) | 本人作業の完全手順 (Step 1〜8) |
 
 ---
 
