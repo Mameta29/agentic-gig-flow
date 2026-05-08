@@ -1,0 +1,24 @@
+{
+  "name": "agentic-gig-flow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "dev:functions": "pnpm --filter @gigflow/functions dev",
+    "dev:dashboard": "pnpm --filter @gigflow/dashboard dev",
+    "dev:mcp": "pnpm --filter @gigflow/mcp-server dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "@types/node": "^20.16.11"
+  }
+}

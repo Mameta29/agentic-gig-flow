@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+packages/functions/local.settings.json
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+
+# coverage
+coverage/
+
+# Azure Functions
+bin/
+obj/
+
+# misc
+.cache/
+.turbo/
