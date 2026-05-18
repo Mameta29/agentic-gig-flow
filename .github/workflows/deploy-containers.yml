@@ -1,0 +1,132 @@
+name: Deploy Containers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/dashboard/**'
+      - 'packages/mcp-server/**'
+      - 'packages/shared/**'
+      - '.github/workflows/deploy-containers.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which container to deploy
+        type: choice
+        options: [both, dashboard, mcp]
+        default: both
+
+# Builds Docker images, pushes to GHCR, and updates the Container Apps.
+# Requires repo secrets:
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID  (federated credential)
+#   AZURE_RESOURCE_GROUP                                      (e.g. rg-gigflow-prod)
+# GITHUB_TOKEN is used for GHCR auth (packages: write).
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-containers
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  DASHBOARD_APP: ca-gigflow-dashboard
+  MCP_APP: ca-gigflow-mcp
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      mcp: ${{ steps.filter.outputs.mcp }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dashboard:
+              - 'packages/dashboard/**'
+              - 'packages/shared/**'
+            mcp:
+              - 'packages/mcp-server/**'
+              - 'packages/shared/**'
+
+  deploy:
+    needs: changes
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dashboard
+            image: gigflow-dashboard
+            dockerfile: packages/dashboard/Dockerfile
+            app: ca-gigflow-dashboard
+            port: 3000
+          - name: mcp
+            image: gigflow-mcp
+            dockerfile: packages/mcp-server/Dockerfile
+            app: ca-gigflow-mcp
+            port: 3333
+    steps:
+      - name: Decide whether to run
+        id: gate
+        run: |
+          set -euo pipefail
+          target="${{ github.event.inputs.target || 'both' }}"
+          changed_dashboard="${{ needs.changes.outputs.dashboard }}"
+          changed_mcp="${{ needs.changes.outputs.mcp }}"
+          run=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "$target" = "both" ] || [ "$target" = "${{ matrix.name }}" ]; then run=true; fi
+          else
+            if [ "${{ matrix.name }}" = "dashboard" ] && [ "$changed_dashboard" = "true" ]; then run=true; fi
+            if [ "${{ matrix.name }}" = "mcp" ] && [ "$changed_mcp" = "true" ]; then run=true; fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "Deploy ${{ matrix.name }}: $run"
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - name: Log in to GHCR
+        if: steps.gate.outputs.run == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        if: steps.gate.outputs.run == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+
+      - name: Azure login (OIDC)
+        if: steps.gate.outputs.run == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update Container App image
+        if: steps.gate.outputs.run == 'true'
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ matrix.app }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --image ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}

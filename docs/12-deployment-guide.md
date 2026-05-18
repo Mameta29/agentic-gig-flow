@@ -257,23 +257,26 @@ FABRIC_APP_ID=$(az ad app create \
 echo "FABRIC_APP_ID=$FABRIC_APP_ID"
 ```
 
-### 2-4. App roles (PM / Accountant / Executive) の追加
+### 2-4. App roles / 公開スコープ / API permissions の構築 (スクリプト)
 
-Azure CLI では Manifest を直接書けないので、**Azure Portal で GUI 操作**:
+App Roles・公開スコープ・API permissions・ロール割当を **`infra/entra/setup-app-roles.sh` が一括で構築する**。GUI 操作は不要。
 
-1. https://entra.microsoft.com → アプリの登録
-2. `app-gigflow-functions` → 管理 → アプリ ロール → **アプリ ロールの作成**
-3. 以下を 3 つ作成:
+```bash
+cd ~/dev/hackson/agentic-gig-flow
+./infra/entra/setup-app-roles.sh
+```
 
-| 表示名 | 値 (value) | 許可されるメンバー | 説明 |
-|---|---|---|---|
-| PM | `PM` | ユーザー/グループ | Order creation and status |
-| Accountant | `Accountant` | ユーザー/グループ | Read access to orders/journals |
-| Executive | `Executive` | ユーザー/グループ | Read aggregated reports |
+このスクリプトが冪等に行うこと:
 
-4. `app-gigflow-mcp` でも**同じ 3 ロール**を作成
-5. **Enterprise applications** → `app-gigflow-functions` → ユーザーとグループ → 自分自身に **PM / Accountant / Executive 全部**を割当 (デモ用にすべて持つ)
-6. 同じく `app-gigflow-mcp` でも自分に Accountant + Executive を割当
+- `app-gigflow-functions` / `app-gigflow-mcp` に App Roles **PM / Accountant / Executive** を作成
+- `app-gigflow-functions` に `orders.read` / `orders.write`、`app-gigflow-mcp` に `mcp.read`、`app-gigflow-fabric` に `data.read` を公開スコープとして作成
+- Dashboard → Functions/MCP、Bot → Functions/MCP/Fabric の API permissions を付与し、管理者同意を実行
+- デモ用に自分自身へ全ロール (Functions: PM+Accountant+Executive / MCP: Accountant+Executive) を割当
+
+App ID は displayName から自動解決する。明示したい場合は `FUNCTIONS_APP_ID` 等の環境変数で渡す。
+管理者同意が権限不足で失敗した場合は Entra Portal で手動同意すること (スクリプトは警告のみで継続)。
+
+> これにより旧 Step 2-6 (API permissions の Portal 操作) も不要になった。
 
 ### 2-5. Dashboard と MCP の Container App デプロイ
 
@@ -373,25 +376,11 @@ az ad app update --id $DASHBOARD_APP_ID --web-redirect-uris \
   "http://localhost:3000/api/auth/callback/microsoft-entra-id"
 ```
 
-### 2-6. API permissions の付与 (Portal で操作)
+### 2-6. API permissions の付与
 
-**Dashboard アプリに Functions と MCP の scope を要求する権限を追加**:
-
-1. Entra Portal → App registrations → `app-gigflow-dashboard` → API のアクセス許可
-2. **アクセス許可の追加** → API → 自分が所有する API
-3. `app-gigflow-functions` を選択 → 委任されたアクセス許可 → `orders.write`, `orders.read` をチェック → 追加
-   - もし scope が定義されていなければ、先に Functions アプリの「API の公開」で scope を作成:
-     - `app-gigflow-functions` → API の公開 → アプリケーション ID URI が `api://gigflow-functions` であることを確認 → スコープの追加 → `orders.write`, `orders.read` をそれぞれ作成
-4. 同様に `app-gigflow-mcp` → `mcp.read` も Dashboard に追加
-5. **管理者の同意を与える** をクリック
-
-**Bot アプリにも同じ permission 追加** (OBO で Functions / MCP / Fabric を呼ぶため):
-
-1. `app-gigflow-copilot` → API のアクセス許可
-2. `api://gigflow-functions/orders.write` を追加
-3. `api://gigflow-mcp/mcp.read` を追加
-4. `api://gigflow-fabric/data.read` を追加 (Fabric scope は §11 で公開要)
-5. 管理者の同意
+**Step 2-4 の `setup-app-roles.sh` で構築済み** (Dashboard → Functions/MCP、Bot → Functions/MCP/Fabric)。
+Entra Portal の App registrations で各アプリの「API のアクセス許可」が緑チェックになっているか確認するだけでよい。
+管理者同意が `setup-app-roles.sh` 実行時に権限不足で失敗していた場合のみ、Portal で「管理者の同意を与える」を押す。
 
 ### 2-7. `.env` を埋める
 
@@ -774,25 +763,35 @@ git add . && git commit -m "init demo workspace" && git push origin main
    az keyvault secret set --vault-name $KV_NAME --name github-pat --value "github_pat_..."
    ```
 
-### 7-3. Functions をデプロイ
+### 7-3. Functions / Container をデプロイ (CI/CD 推奨)
 
-ローカルからデプロイ:
+**推奨: GitHub Actions で自動デプロイ**。先に OIDC を一度だけセットアップする:
 
 ```bash
 cd ~/dev/hackson/agentic-gig-flow
+RG=$RG GH_REPO=Mameta29/agentic-gig-flow ./infra/entra/setup-github-oidc.sh
+```
 
-# Azure Functions Core Tools をインストール (まだなら)
-brew tap azure/functions
-brew install azure-functions-core-tools@4
+これが行うこと:
 
-# functions パッケージを build
+- `app-gigflow-github-actions` を作成し、main ブランチ + production environment の federated credential を登録
+- リソースグループに Contributor ロールを割当
+- `gh` CLI があればリポジトリ secret (`AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` / `AZURE_RESOURCE_GROUP` / `AZURE_FUNCTIONAPP_NAME`) を自動登録
+
+GitHub の **Settings > Environments** に `production` 環境を作成したら、以後は:
+
+- `packages/functions/**` への push → `.github/workflows/deploy-functions.yml` が Functions を自動デプロイ
+- `packages/dashboard/**` / `packages/mcp-server/**` への push → `deploy-containers.yml` が GHCR ビルド + Container Apps 更新
+- 手動デプロイは GitHub Actions の **Run workflow** ボタン (`workflow_dispatch`) からも可能
+
+**フォールバック: ローカルから手動デプロイ** (CI が使えない場合):
+
+```bash
+cd ~/dev/hackson/agentic-gig-flow
+brew tap azure/functions && brew install azure-functions-core-tools@4   # 初回のみ
 pnpm --filter @gigflow/functions build
-
-# デプロイ (zip deploy)
 cd packages/functions
 func azure functionapp publish $FUNC_NAME --typescript
-
-# デプロイ後、HTTPトリガーのURL一覧を確認
 func azure functionapp list-functions $FUNC_NAME --show-keys
 ```
 
@@ -844,21 +843,31 @@ echo "WEBHOOK_URL=$WEBHOOK_URL"
 10. Claude Desktop の MCP 設定に `gigflow-mcp` を追加 (`docs/09-mcp-server.md` §7.1) → 「先月の sato さんへの支払いは?」と聞いて MCP tool 呼び出しが返ってくることを確認
 11. Power BI を開いて経営者ビューを確認
 
-### 8-2. 動画撮影 (`docs/06-demo-script.md` を台本)
+### 8-2. App Insights Workbook をデプロイ + 動画撮影
+
+**先に Workbook をデプロイ** (KQL を Portal で手貼りする必要はない):
+
+```bash
+cd ~/dev/hackson/agentic-gig-flow
+RG=$RG APPI_NAME=$APPI_NAME ./infra/observability/deploy-workbook.sh
+```
+
+`infra/observability/gigflow-workbook.json` が **gigflow-business-dashboard** という Workbook として
+Application Insights に配置される。中身:
+
+- **最新の着金レイテンシ** (Merge → JPYC着金、秒) — デモのオーバーレイにそのまま使える大きな数字
+- 着金レイテンシ分布 (p50 / p95 / max、直近30日)・推移チャート
+- Settlement 成功率・MCP ツール呼び出し回数
+
+この「Merge → 着金」秒数は `settlement_completed` イベントの `mergeToSettledMs` measurement
+(PR マージ webhook の `mergedAt` 起点) から算出される。生 KQL は `infra/observability/workbook-queries.kql` 参照。
+
+**動画撮影** (`docs/06-demo-script.md` を台本):
 
 - **ソフト**: OBS Studio (録画) + DaVinci Resolve (編集) いずれも無料
 - **機材**: USB マイク (千円〜) + 静かな部屋 / 仮想背景
 - **解像度**: 1920x1080 / 60fps
-- **Scene 5 の 3 秒着金**: Application Insights のクエリ
-  ```kusto
-  customEvents
-  | where name in ("settlement_started", "settlement_completed")
-  | extend orderId = tostring(customDimensions.orderId)
-  | summarize start=minif(timestamp, name=="settlement_started"),
-              end=minif(timestamp, name=="settlement_completed") by orderId
-  | extend latency_ms = datetime_diff('millisecond', end, start)
-  ```
-  で実測値を取得し、字幕に焼き込む
+- **Scene 5 の 3 秒着金**: 上の Workbook「最新の着金レイテンシ」タイルの実測値を字幕に焼き込む
 
 ### 8-3. 動画を YouTube にアップ (Unlisted)
 

@@ -1,0 +1,82 @@
+name: Deploy Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/functions/**'
+      - 'packages/shared/**'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
+
+# OIDC login to Azure. Requires repo secrets:
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID  (federated credential)
+#   AZURE_FUNCTIONAPP_NAME                                    (e.g. func-gigflow-xxxxxx)
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (shared + functions)
+        run: |
+          pnpm --filter @gigflow/shared build
+          pnpm --filter @gigflow/functions build
+
+      - name: Test functions
+        run: pnpm --filter @gigflow/functions test
+
+      # Azure Functions Node deploy needs production node_modules colocated
+      # with the function app. Deploy a self-contained package directory.
+      - name: Assemble deploy package
+        run: |
+          set -euo pipefail
+          rm -rf deploy
+          mkdir -p deploy
+          cp -r packages/functions/dist deploy/dist
+          cp packages/functions/host.json deploy/host.json
+          cp packages/functions/package.json deploy/package.json
+          cd deploy
+          # Install only the functions runtime deps, flattened (no workspace).
+          npm pkg delete dependencies.@gigflow/shared
+          npm install --omit=dev --no-package-lock --ignore-scripts
+          # Vendor the workspace-local shared package into node_modules.
+          mkdir -p node_modules/@gigflow/shared
+          cp -r ../packages/shared/dist node_modules/@gigflow/shared/dist
+          cp ../packages/shared/package.json node_modules/@gigflow/shared/package.json
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+          package: deploy

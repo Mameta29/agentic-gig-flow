@@ -1,0 +1,39 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "FUNCTIONS_EXTENSION_VERSION": "~4",
+
+    "COSMOS_ENDPOINT": "https://cosmos-gigflow-xxxxxx.documents.azure.com:443/",
+    "COSMOS_DATABASE": "gigflow",
+
+    "KEY_VAULT_NAME": "kv-gigflow-xxxxxx",
+
+    "AZURE_OPENAI_ENDPOINT": "https://aoai-gigflow-xxxxxx.openai.azure.com/",
+    "AZURE_OPENAI_DEPLOYMENT": "gpt-4o",
+    "AZURE_OPENAI_API_VERSION": "2024-10-21",
+
+    "POLYGON_RPC": "https://polygon-rpc.com",
+    "JPYC_ADDRESS": "0x431D5dfF03120AFA4bDf332c61A6e1766eF37BDB",
+
+    "WALLET_PK_SECRET_NAME": "wallet-pk",
+    "GITHUB_PAT_SECRET_NAME": "github-pat",
+    "GITHUB_WEBHOOK_SECRET_NAME": "github-webhook-secret",
+    "BOT_CLIENT_SECRET_NAME": "bot-client-secret",
+
+    "FUNCTIONS_APP_AUDIENCE": "api://gigflow-functions",
+    "MCP_APP_AUDIENCE": "api://gigflow-mcp",
+
+    "BOT_APP_ID": "",
+
+    "DASHBOARD_URL": "",
+    "POWER_BI_REPORT_URL": "",
+
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": ""
+  },
+  "Host": {
+    "CORS": "*",
+    "CORSCredentials": false
+  }
+}
