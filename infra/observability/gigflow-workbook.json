@@ -1,0 +1,79 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Agentic Gig-Flow — 業務改革ダッシュボード\n\nPRマージ → JPYC着金の実測レイテンシと、4 Agent パイプラインの健全性を可視化する。"
+      },
+      "name": "title"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == \"settlement_completed\"\n| extend merge_to_settled_s = todouble(customMeasurements.mergeToSettledMs) / 1000.0\n| where isnotnull(merge_to_settled_s)\n| top 1 by timestamp desc\n| project ['Merge to JPYC 着金 (秒)'] = round(merge_to_settled_s, 2)",
+        "size": 3,
+        "title": "最新の着金レイテンシ (Merge → JPYC)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles"
+      },
+      "name": "headline-latency"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp > ago(30d)\n| where name == \"settlement_completed\"\n| extend merge_to_settled_s = todouble(customMeasurements.mergeToSettledMs) / 1000.0\n| where isnotnull(merge_to_settled_s)\n| summarize settlements = count(), p50_s = round(percentile(merge_to_settled_s, 50), 2), p95_s = round(percentile(merge_to_settled_s, 95), 2), max_s = round(max(merge_to_settled_s), 2)",
+        "size": 1,
+        "title": "着金レイテンシ分布 (直近30日)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "latency-distribution"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == \"settlement_completed\"\n| extend orderId = tostring(customDimensions.orderId), merge_to_settled_s = todouble(customMeasurements.mergeToSettledMs) / 1000.0\n| where isnotnull(merge_to_settled_s)\n| project timestamp, orderId, merge_to_settled_s\n| order by timestamp asc",
+        "size": 0,
+        "title": "着金レイテンシの推移",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "name": "latency-timeline"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp > ago(7d)\n| where name in (\"settlement_started\", \"settlement_completed\", \"settlement_failed\")\n| summarize started = countif(name == \"settlement_started\"), succeeded = countif(name == \"settlement_completed\"), failed = countif(name == \"settlement_failed\")\n| extend success_rate = round(todouble(succeeded) / started, 3)",
+        "size": 1,
+        "title": "Settlement 成功率 (直近7日)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "settlement-success-rate"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == \"mcp_tool_called\"\n| extend tenant = tostring(customDimensions.tenantId), tool = tostring(customDimensions.tool)\n| summarize calls = count() by tool\n| order by calls desc",
+        "size": 0,
+        "title": "MCP ツール呼び出し回数",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "mcp-tool-usage"
+    }
+  ],
+  "fallbackResourceIds": [],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

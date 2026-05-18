@@ -35,3 +35,34 @@ customEvents
          tool = tostring(customDimensions.tool)
 | summarize calls = count() by tool, tenant
 | order by calls desc
+
+// 5. HEADLINE — merge-to-settled latency (the "3 seconds" claim)
+// mergeToSettledMs is emitted as a measurement on settlement_completed
+// (settlement.ts). It spans GitHub merge -> JPYC arrival on-chain.
+customEvents
+| where name == "settlement_completed"
+| extend orderId = tostring(customDimensions.orderId),
+         merge_to_settled_s = todouble(customMeasurements.mergeToSettledMs) / 1000.0
+| where isnotnull(merge_to_settled_s)
+| project timestamp, orderId, merge_to_settled_s
+| order by timestamp desc
+
+// 6. HEADLINE — single big number for the demo overlay (latest settlement)
+customEvents
+| where name == "settlement_completed"
+| extend merge_to_settled_s = todouble(customMeasurements.mergeToSettledMs) / 1000.0
+| where isnotnull(merge_to_settled_s)
+| top 1 by timestamp desc
+| project ["Merge → JPYC 着金 (秒)"] = round(merge_to_settled_s, 2)
+
+// 7. HEADLINE — distribution of merge-to-settled latency (last 30d)
+customEvents
+| where timestamp > ago(30d)
+| where name == "settlement_completed"
+| extend merge_to_settled_s = todouble(customMeasurements.mergeToSettledMs) / 1000.0
+| where isnotnull(merge_to_settled_s)
+| summarize
+    settlements = count(),
+    p50_s = round(percentile(merge_to_settled_s, 50), 2),
+    p95_s = round(percentile(merge_to_settled_s, 95), 2),
+    max_s = round(max(merge_to_settled_s), 2)

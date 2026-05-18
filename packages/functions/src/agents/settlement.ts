@@ -161,12 +161,23 @@ export async function runSettlement(
       recipient: order.workerWallet,
     },
   });
-  trackEvent('settlement_completed', {
-    orderId: order.id,
-    tenantId: input.tenantId,
-    txHash: result.txHash,
-    amountJpyc: order.amountJpyc,
-  });
+  // Headline metric: time from GitHub merge to JPYC arrival on-chain.
+  // mergedAt comes straight from the PR merge webhook payload, so this measures
+  // the full "merge -> settled" latency the demo claims is ~3 seconds.
+  const mergedAtMs = Date.parse(input.prMergeEvent.mergedAt);
+  const measurements: Record<string, number> = Number.isNaN(mergedAtMs)
+    ? {}
+    : { mergeToSettledMs: Math.max(0, Date.parse(settledAt) - mergedAtMs) };
+  trackEvent(
+    'settlement_completed',
+    {
+      orderId: order.id,
+      tenantId: input.tenantId,
+      txHash: result.txHash,
+      amountJpyc: order.amountJpyc,
+    },
+    measurements,
+  );
 
   logger.info(
     {
