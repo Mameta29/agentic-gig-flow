@@ -37,7 +37,7 @@
 7. **JPYC をPolygonで送金する** — JPYC コントラクトの `transfer()` を `viem` で叩く。EIP-3009 は使わない (Settlement Agent が秘密鍵保有 + MATIC保有のため不要)。
 
 ### 言語・人間
-8. **TypeScript / Node.js 24 / pnpm** — 言語・ランタイム・パッケージマネージャは固定。(当初 Node 20 LTS としていたが、Azure Functions が「Node 20 は 2026-04-30 EOL」として作成を拒否したため Node 24 に変更。TypeScript なのでランタイム影響は小さい。)
+8. **TypeScript / Node.js 22 / pnpm** — 言語・ランタイム・パッケージマネージャは固定。(当初 Node 20 LTS としていたが、Azure Functions が「Node 20 は 2026-04-30 EOL」として作成を拒否し、かつ Node 24 は japaneast の Linux Consumption でホストが起動しないため、Node 22 に確定。TypeScript なのでランタイム影響は小さい。)
 9. **Worker (受注者) は人間** — Worker Agent ノードは作らない。デモのフリーランサー Sato は実在の人間ペルソナ。
 
 これらに反する選択肢が魅力的に見えても、**ハッカソン提出までは固定**。提出後の発展構想として記事に書くのは可。
@@ -112,7 +112,7 @@ agentic-gig-flow/
 
 ### 言語・ランタイム
 - TypeScript 5+, strict mode 有効、`noImplicitAny: true`
-- Node.js 24
+- Node.js 22
 - 全ファイル ESM (`"type": "module"`)
 
 ### スタイル
