@@ -11,14 +11,15 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 RUN pnpm --filter @gigflow/shared build
 RUN pnpm --filter @gigflow/mcp-server build
+# `pnpm deploy` resolves the workspace package into a self-contained
+# directory with a real (non-symlinked) node_modules — exactly what the
+# runner stage needs.
+RUN pnpm --filter @gigflow/mcp-server --prod deploy /app/deploy
 
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3333
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared ./packages/shared
-COPY --from=build /app/packages/mcp-server/dist ./packages/mcp-server/dist
-COPY --from=build /app/packages/mcp-server/package.json ./packages/mcp-server/
+COPY --from=build /app/deploy ./
 EXPOSE 3333
-CMD ["node", "packages/mcp-server/dist/server.js"]
+CMD ["node", "dist/server.js"]
