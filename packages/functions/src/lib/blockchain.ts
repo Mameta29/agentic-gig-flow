@@ -8,7 +8,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
 import { polygon, polygonAmoy } from 'viem/chains';
 import { env } from './env.js';
 import { getSecret } from './key-vault.js';
@@ -66,11 +66,11 @@ export type Blockchain = {
 
 let walletClient: WalletClient | null = null;
 let publicClient: PublicClient | null = null;
-let cachedAccount: Address | null = null;
+let cachedAccount: PrivateKeyAccount | null = null;
 
 async function loadWalletClient(): Promise<{
   walletClient: WalletClient;
-  account: Address;
+  account: PrivateKeyAccount;
 }> {
   if (walletClient && cachedAccount) {
     return { walletClient, account: cachedAccount };
@@ -83,8 +83,12 @@ async function loadWalletClient(): Promise<{
     chain: getChain(),
     transport: http(env.polygonRpc()),
   });
-  cachedAccount = account.address;
-  return { walletClient, account: account.address };
+  // Return the account object (not the address): passing the object makes
+  // viem sign locally and use eth_sendRawTransaction. Passing a bare address
+  // string makes viem fall back to eth_sendTransaction (node-side signing),
+  // which public RPCs reject with "unknown account".
+  cachedAccount = account;
+  return { walletClient, account };
 }
 
 function getPublicClient(): PublicClient {
@@ -134,7 +138,7 @@ export async function transferJpyc(opts: {
   return {
     txHash,
     blockNumber: receipt.blockNumber,
-    from: account,
+    from: account.address,
     to: opts.to as Address,
     amountJpyc: opts.amountJpyc,
   };
