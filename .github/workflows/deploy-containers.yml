@@ -90,6 +90,12 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
           echo "Deploy ${{ matrix.name }}: $run"
 
+      # GHCR repository names must be lowercase; the owner can contain capitals.
+      - name: Lowercase repository owner
+        id: owner
+        if: steps.gate.outputs.run == 'true'
+        run: echo "lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         if: steps.gate.outputs.run == 'true'
 
@@ -109,8 +115,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:latest
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.lc }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.lc }}/${{ matrix.image }}:${{ github.sha }}
 
       - name: Azure login (OIDC)
         if: steps.gate.outputs.run == 'true'
@@ -129,4 +135,4 @@ jobs:
             az containerapp update \
               --name ${{ matrix.app }} \
               --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-              --image ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+              --image ${{ env.REGISTRY }}/${{ steps.owner.outputs.lc }}/${{ matrix.image }}:${{ github.sha }}
