@@ -1,4 +1,4 @@
-import type { Order, BookkeepingArtifacts } from '@gigflow/shared';
+import { explorerTxUrl, type Order, type BookkeepingArtifacts } from '@gigflow/shared';
 import { env } from './env.js';
 
 export function buildBookkeepingCompletionCard(
@@ -8,7 +8,7 @@ export function buildBookkeepingCompletionCard(
   const dashboardUrl = env.dashboardUrl() ?? 'https://example.com';
   const powerBiUrl = env.powerBiReportUrl() ?? '';
   const explorerUrl = order.txHash
-    ? `https://polygonscan.com/tx/${order.txHash}`
+    ? explorerTxUrl(order.txHash, env.polygonChainId())
     : '';
 
   return {

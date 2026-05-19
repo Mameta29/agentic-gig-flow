@@ -9,7 +9,7 @@ import {
   type WalletClient,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { polygon } from 'viem/chains';
+import { polygon, polygonAmoy } from 'viem/chains';
 import { env } from './env.js';
 import { getSecret } from './key-vault.js';
 import { logger } from './logger.js';
@@ -44,6 +44,13 @@ export const JPYC_ABI = [
 
 const JPYC_DECIMALS = 18;
 
+// Select the Polygon chain from POLYGON_CHAIN_ID so mainnet/testnet is a
+// config switch, not a code change. viem signs txs with the chain's id, so
+// this must match the network behind POLYGON_RPC.
+function getChain() {
+  return env.polygonChainId() === polygonAmoy.id ? polygonAmoy : polygon;
+}
+
 export type TransferResult = {
   txHash: Hash;
   blockNumber: bigint;
@@ -73,7 +80,7 @@ async function loadWalletClient(): Promise<{
   const account = privateKeyToAccount(pk);
   walletClient = createWalletClient({
     account,
-    chain: polygon,
+    chain: getChain(),
     transport: http(env.polygonRpc()),
   });
   cachedAccount = account.address;
@@ -83,7 +90,7 @@ async function loadWalletClient(): Promise<{
 function getPublicClient(): PublicClient {
   if (publicClient) return publicClient;
   publicClient = createPublicClient({
-    chain: polygon,
+    chain: getChain(),
     transport: http(env.polygonRpc()),
   });
   return publicClient;
@@ -111,7 +118,7 @@ export async function transferJpyc(opts: {
     functionName: 'transfer',
     args: [opts.to as Address, value],
     account,
-    chain: polygon,
+    chain: getChain(),
   });
 
   logger.info(

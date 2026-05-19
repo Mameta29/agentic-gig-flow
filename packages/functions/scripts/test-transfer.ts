@@ -3,7 +3,9 @@
  * Reads recipient + amount from CLI args.
  *   pnpm --filter @gigflow/functions exec tsx scripts/test-transfer.ts 0xRECIPIENT 100
  */
+import { explorerTxUrl } from '@gigflow/shared';
 import { transferJpyc, getBalance } from '../src/lib/blockchain.js';
+import { env } from '../src/lib/env.js';
 
 async function main() {
   const [, , to, amount] = process.argv;
@@ -19,7 +21,7 @@ async function main() {
     blockNumber: result.blockNumber.toString(),
     from: result.from,
     to: result.to,
-    explorer: `https://polygonscan.com/tx/${result.txHash}`,
+    explorer: explorerTxUrl(result.txHash, env.polygonChainId()),
   });
   const bal = await getBalance(result.from);
   console.log('sender balance now:', bal.toString());

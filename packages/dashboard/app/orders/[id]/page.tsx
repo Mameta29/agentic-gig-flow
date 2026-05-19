@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { listOrders } from '@/lib/api';
+import { txUrl } from '@/lib/explorer';
 
 type OrderRow = {
   id: string;
@@ -68,7 +69,7 @@ export default async function OrderDetailPage({
             <dd>
               <a
                 className="text-blue-600 hover:underline"
-                href={`https://polygonscan.com/tx/${order.txHash}`}
+                href={txUrl(order.txHash)}
                 target="_blank"
                 rel="noreferrer"
               >

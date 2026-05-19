@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { listOrders } from '@/lib/api';
+import { txUrl } from '@/lib/explorer';
 import { OrdersStream } from '@/components/orders-stream';
 
 type OrderRow = {
@@ -64,7 +65,7 @@ export default async function OrdersPage() {
                 {o.txHash ? (
                   <a
                     target="_blank"
-                    href={`https://polygonscan.com/tx/${o.txHash}`}
+                    href={txUrl(o.txHash)}
                     className="text-blue-600 hover:underline"
                     rel="noreferrer"
                   >

@@ -22,6 +22,8 @@ export const env = {
   openaiApiVersion: () =>
     process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
   polygonRpc: () => process.env.POLYGON_RPC || 'https://polygon-rpc.com',
+  // 137 = Polygon mainnet, 80002 = Polygon Amoy testnet. Defaults to mainnet.
+  polygonChainId: () => Number(process.env.POLYGON_CHAIN_ID || '137'),
   jpycAddress: () =>
     (process.env.JPYC_ADDRESS as `0x${string}`) ||
     ('0x431D5dfF03120AFA4bDf332c61A6e1766eF37BDB' as const),
