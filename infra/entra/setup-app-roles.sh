@@ -152,9 +152,11 @@ FUNCTIONS_SCOPES="[
 MCP_SCOPES="[ $(scope_obj "$MCP_READ_ID" "mcp.read" "Query gigflow data" "Read access via MCP tools") ]"
 FABRIC_SCOPES="[ $(scope_obj "$FABRIC_READ_ID" "data.read" "Read reports" "Read aggregated reports") ]"
 
-set_exposed_scopes "$FUNCTIONS_APP_ID" "api://gigflow-functions" "$FUNCTIONS_SCOPES" "app-gigflow-functions"
-set_exposed_scopes "$MCP_APP_ID" "api://gigflow-mcp" "$MCP_SCOPES" "app-gigflow-mcp"
-set_exposed_scopes "$FABRIC_APP_ID" "api://gigflow-fabric" "$FABRIC_SCOPES" "app-gigflow-fabric"
+# Newer Entra tenant policies reject vanity identifier URIs (api://gigflow-*);
+# the URI must contain the app ID. Use api://<appId>.
+set_exposed_scopes "$FUNCTIONS_APP_ID" "api://${FUNCTIONS_APP_ID}" "$FUNCTIONS_SCOPES" "app-gigflow-functions"
+set_exposed_scopes "$MCP_APP_ID" "api://${MCP_APP_ID}" "$MCP_SCOPES" "app-gigflow-mcp"
+set_exposed_scopes "$FABRIC_APP_ID" "api://${FABRIC_APP_ID}" "$FABRIC_SCOPES" "app-gigflow-fabric"
 
 # --- API permissions (requiredResourceAccess) ---------------------------------
 # Dashboard -> Functions(orders.read/write) + MCP(mcp.read)
