@@ -48,7 +48,14 @@ export async function createOrder(body: {
     method: 'POST',
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`create failed: ${res.status}`);
+  if (!res.ok) {
+    // Surface the Functions error body so we can see *why* create failed
+    // (e.g. contract_failed: <reason>) in the dashboard container logs.
+    const detail = await res.text().catch(() => '');
+    // eslint-disable-next-line no-console
+    console.error('[CREATE_ORDER_FAIL]', res.status, detail.slice(0, 1000));
+    throw new Error(`create failed: ${res.status} ${detail.slice(0, 300)}`);
+  }
   return res.json();
 }
 
