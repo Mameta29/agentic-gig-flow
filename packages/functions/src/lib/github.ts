@@ -154,6 +154,31 @@ export async function getCheckRunStatus(opts: {
   return 'pending';
 }
 
+/**
+ * Resolve CI status for a head ref, waiting out the race where the
+ * `synchronize` webhook arrives before GitHub has finished (or even created)
+ * the check runs for the new commit. Without this, the Review Agent reads
+ * `pending` and rejects an otherwise-passing PR. Polls until the status is
+ * conclusive (success/failure) or the budget elapses, then returns whatever it
+ * last saw.
+ */
+export async function waitForCheckRun(opts: {
+  repository: string;
+  ref: string;
+  timeoutMs?: number;
+  intervalMs?: number;
+}): Promise<'success' | 'failure' | 'pending'> {
+  const timeoutMs = opts.timeoutMs ?? 20_000;
+  const intervalMs = opts.intervalMs ?? 2_000;
+  const deadline = Date.now() + timeoutMs;
+  let status = await getCheckRunStatus(opts);
+  while (status === 'pending' && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+    status = await getCheckRunStatus(opts);
+  }
+  return status;
+}
+
 const ORDER_ID_RE = /<!--\s*gigflow:orderId=([0-9a-fA-F-]{36})\s*-->/;
 
 export function extractOrderIdFromIssueBody(

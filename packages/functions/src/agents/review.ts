@@ -229,6 +229,8 @@ export async function runReview(
       autoMerge: parsed.autoMerge,
       didMerge,
       tokens: result.totalTokens,
+      criteriaResults: parsed.criteriaResults,
+      reviewComment: parsed.reviewComment,
     },
   });
 

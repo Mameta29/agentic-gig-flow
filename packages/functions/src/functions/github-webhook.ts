@@ -5,10 +5,10 @@ import { env } from '../lib/env.js';
 import { getSecret } from '../lib/key-vault.js';
 import {
   extractOrderIdFromIssueBody,
-  getCheckRunStatus,
   getIssueBody,
   getPr,
   verifyWebhookSignature,
+  waitForCheckRun,
 } from '../lib/github.js';
 import { logger } from '../lib/logger.js';
 import { createTenantScopedCosmos } from '../lib/cosmos.js';
@@ -177,7 +177,7 @@ async function handlePullRequest(
       });
     }
 
-    const ciStatus = await getCheckRunStatus({ repository, ref: pr.head.sha });
+    const ciStatus = await waitForCheckRun({ repository, ref: pr.head.sha });
     const order = await cosmos.getOrder(orderId);
     if (!order) return { status: 200, body: 'order vanished' };
 
