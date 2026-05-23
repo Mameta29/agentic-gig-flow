@@ -29,7 +29,7 @@ app.http('ordersCreate', {
 
 export async function handler(
   req: HttpRequest,
-  _ctx: InvocationContext,
+  ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
   let auth;
   try {
@@ -48,6 +48,11 @@ export async function handler(
     return { status: 400, jsonBody: { error: parsed.error.flatten() } };
   }
 
+  // ctx.log is flushed to App Insights by the Functions runtime regardless of
+  // the SDK init state, so it survives even if the worker later crashes.
+  ctx.log(
+    `orders/create: runContract start tenant=${auth.tenantId} user=${auth.userId}`,
+  );
   try {
     const out = await runContract({
       tenantId: auth.tenantId,
@@ -59,8 +64,11 @@ export async function handler(
       today: parsed.data.today ?? new Date().toISOString().slice(0, 10),
       conversationReference: parsed.data.conversationReference as never,
     });
+    ctx.log(`orders/create: success orderId=${out.orderId}`);
     return { status: 201, jsonBody: out };
   } catch (err) {
+    const detail = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
+    ctx.error(`orders/create failed: ${detail}`);
     logger.error({ err: String(err) }, 'orders/create failed');
     return { status: 500, jsonBody: { error: String(err) } };
   }
