@@ -41,7 +41,6 @@ declare module 'next-auth' {
 
 const FUNCTIONS_APP_ID =
   process.env.FUNCTIONS_APP_ID || 'gigflow-functions';
-const MCP_APP_ID = process.env.MCP_APP_ID || 'gigflow-mcp';
 
 // Auth.js rewrites the discovered issuer's `{tenantid}` using the tenant
 // segment of `issuer`. With `common`, the expected issuer stays `.../common/...`
@@ -50,7 +49,13 @@ const MCP_APP_ID = process.env.MCP_APP_ID || 'gigflow-mcp';
 // to the real tenant id for this single-tenant demo deployment.
 const TENANT_ID = process.env.AUTH_ENTRA_TENANT_ID || 'common';
 
-const ENTRA_SCOPE = `openid profile email offline_access api://${FUNCTIONS_APP_ID}/orders.write api://${FUNCTIONS_APP_ID}/orders.read api://${MCP_APP_ID}/mcp.read`;
+// Only request a single resource's scopes. Entra v2 cannot issue a token for
+// multiple resources in one authorization-code exchange, and Auth.js/
+// oauth4webapi omit `scope` from the token request, so mixing
+// api://functions + api://mcp triggers AADSTS28003 ("scope cannot be empty").
+// The dashboard only calls the Functions API (see lib/api.ts), so we drop the
+// MCP scope. MCP is consumed by Claude Desktop, not the dashboard.
+const ENTRA_SCOPE = `openid profile email offline_access api://${FUNCTIONS_APP_ID}/orders.write api://${FUNCTIONS_APP_ID}/orders.read`;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
