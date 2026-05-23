@@ -450,7 +450,7 @@ PR マージ → 報酬着金の本番フローを demo repo `Mameta29/gigflow-d
    criteriaResults/reviewComment 保存を足したおかげで判明）。
    → ユーザーが PAT の Repository access を `gigflow-demo-workspace` に修正して解決。
 
-### 未解決の既知レース（要・後日修正）
+### 既知レース → 修正済み（2026-05-23、コミット `e96ce70`）
 
 - merge を起こした synchronize の Review 処理（order を `review_passed` に遷移）と、
   そのマージで発火した `closed`(merged) Webhook の Settlement 処理が**並走**する。
@@ -460,6 +460,14 @@ PR マージ → 報酬着金の本番フローを demo repo `Mameta29/gigflow-d
   → 恒久対策案: closed ハンドラで Settlement 前に order が review_passed になるまで短時間待つ、
     または review_passed 未確定なら 1 回リトライ。`docs/03-roadmap` M16 の「PRマージ→3秒」を
     安定させるには直す価値あり。
+
+**修正内容**: `github-webhook.ts` の closed ハンドラで `runSettlement` の前に
+`waitForReviewPassed`（order が review_passed になるまで最大10秒ポーリング。
+settled/bookkept/review_failed/cancelled なら即抜け）を挟んだ。これで closed Webhook が
+review_passed 遷移を待ってから Settlement に進む。**検証**: 2回目の E2E（order `b01047ec`、
+PR #4）を Webhook のみで完走。review_completed→settlement_started が 0.2秒、
+PR merge→settlement_completed が約5秒。送金 tx `0x4cc464b7...`（block 38852020）。
+**手動 runSettlement は不要になった**。
 
 ### 確定値
 
