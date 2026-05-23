@@ -1,6 +1,35 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import EntraID from 'next-auth/providers/microsoft-entra-id';
 
+// TEMP DEBUG: wrap global fetch to log what the Entra token endpoint actually
+// returns. The sign-in flow fails with "JWTs must use Compact JWS
+// serialization" which means the token response has no usable id_token; this
+// prints the raw response so we can see the real AADSTS error.
+const g = globalThis as { __gigflowFetchPatched?: boolean };
+if (!g.__gigflowFetchPatched) {
+  g.__gigflowFetchPatched = true;
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : (input as Request).url;
+    const res = await orig(input, init);
+    if (typeof url === 'string' && url.includes('/oauth2/v2.0/token')) {
+      try {
+        const text = await res.clone().text();
+        // eslint-disable-next-line no-console
+        console.log('[TOKEN_ENDPOINT_DEBUG]', res.status, text.slice(0, 900));
+      } catch {
+        /* ignore */
+      }
+    }
+    return res;
+  };
+}
+
 declare module 'next-auth' {
   interface Session {
     tenantId?: string;
@@ -23,6 +52,7 @@ const TENANT_ID = process.env.AUTH_ENTRA_TENANT_ID || 'common';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  debug: true,
   providers: [
     EntraID({
       clientId: process.env.AUTH_ENTRA_CLIENT_ID,
