@@ -33,6 +33,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           scope: `openid profile email offline_access api://${FUNCTIONS_APP_ID}/orders.write api://${FUNCTIONS_APP_ID}/orders.read api://${MCP_APP_ID}/mcp.read`,
         },
       },
+      // Override the default profile() — it calls Microsoft Graph for the user
+      // photo, which breaks under Next.js standalone/Docker on entra-id
+      // beta.25 ("JWTs must use Compact JWS serialization"). Read claims from
+      // the id_token instead; we don't need the avatar.
+      profile(profile) {
+        return {
+          id: profile.sub ?? profile.oid,
+          name: profile.name ?? profile.preferred_username,
+          email: profile.email ?? profile.preferred_username,
+          image: null,
+        };
+      },
     }),
   ],
   callbacks: {
