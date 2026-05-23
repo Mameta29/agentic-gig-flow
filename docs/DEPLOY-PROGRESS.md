@@ -476,3 +476,34 @@ PR merge→settlement_completed が約5秒。送金 tx `0x4cc464b7...`（block 3
 - mameta.zk@gmail.com に `Cognitive Services OpenAI User` を付与済み（ローカルで Agent を debug するため・ユーザー判断で残置）。
 - 検証スクリプト 3 本は `packages/functions/scripts/` に残置・コミット済み（E2E 再現用）。
 - demo repo の検証痕跡（Issue #1 / merged PR #2 / 空コミット群）は本番デモ前に作り直す前提でそのまま残置。
+
+---
+
+## 14. Copilot Studio / Teams Bot 構築（2026-05-23・進行中）
+
+### 私（CLI）が完了した分
+
+- **Bot 用クライアントシークレット**を `app-gigflow-copilot`(appId `5f03c4f8-87ce-4b38-90be-86dc0e0eb7a3`)に作成し、
+  Key Vault `bot-client-secret` に保存（proactive 完了通知＝Bookkeeping→Teams で使う。`copilot.ts` が参照）。
+- **Azure Bot リソース `bot-gigflow-28fa80`**（SingleTenant / F0 / global）を作成。Teams チャネル有効化済み
+  （configuredChannels = webchat / directline / msteams）。
+- **docs/08 の手順は古い**: `az bot create --app-type MultiTenant` は「Multitenant bot creation is deprecated」で
+  失敗する。→ **SingleTenant で作成**。それに伴い Bot アプリ `app-gigflow-copilot` の signInAudience を
+  `AzureADMultipleOrgs` → **`AzureADMyOrg`** に変更した（このデモは MAMETA テナント1つで完結するため問題なし。
+  Functions/MCP/Dashboard の tid ベースのマルチテナント認可は別アプリなので影響なし）。
+
+### ⚠️ ブロッカー: Copilot Studio のライセンス/環境未プロビジョニング
+
+- `https://copilotstudio.microsoft.com/` は M365 アカウントでログインできるが home がローディングのまま固まる。
+  コンソールに `viral-signup/create/status 404` → **Copilot Studio の利用環境がまだプロビジョニングされていない**。
+  （CSP unsafe-eval 警告は report-only で無関係。）
+- → Copilot Studio のトライアル開始 / ライセンス割当が必要。これが解けないと発注 UI(Agent) が作れない。
+
+### 残（ユーザーのブラウザ作業・docs/08 + infra/copilot-studio 参照）
+
+1. Copilot Studio のライセンス/環境を有効化（上記ブロッカー解消）。
+2. Agent `gigflow` 作成 + インストラクション（docs/08 §2.1）。
+3. 認証設定（Entra ID v2、client=app-gigflow-copilot、scopes は docs/08 §2.2）。
+4. Topic `OrderCreate`（HTTP action → `https://func-gigflow-28fa80.azurewebsites.net/api/copilot/webhook`、
+   Adaptive Card は infra/copilot-studio/cards/）。
+5. Teams チャネル発行 + 管理センター承認 + インストール。
