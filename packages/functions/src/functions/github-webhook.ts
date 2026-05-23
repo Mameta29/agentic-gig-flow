@@ -211,6 +211,13 @@ async function handlePullRequest(
     return { status: 200, body: 'closed but not merged' };
   }
 
+  // Race guard: the auto-merge is triggered by the Review Agent from the
+  // `synchronize` handler, which transitions the order to `review_passed`.
+  // The resulting `closed`(merged) webhook can arrive *before* that transition
+  // is committed, leaving the order at `pr_opened` and making runSettlement
+  // bail with `invalid_status`. Wait briefly for review_passed to land.
+  await waitForReviewPassed(cosmos, orderId);
+
   // Run settlement → bookkeeping. Errors logged & event-written, but we always
   // return 2xx so GitHub does not retry forever.
   try {
@@ -247,6 +254,43 @@ async function handlePullRequest(
   }
 
   return { status: 202, body: 'merge processed' };
+}
+
+/**
+ * Wait (briefly) for the order to reach `review_passed` before settling.
+ * The auto-merge fired by the Review Agent and the resulting `closed` webhook
+ * race each other; the merge webhook can land before the review_passed
+ * transition is committed. Polls until review_passed (proceed), or until the
+ * order is already settled/bookkept (idempotent — proceed and let runSettlement
+ * short-circuit), or until the budget elapses. Returns regardless; runSettlement
+ * still enforces the real status guard.
+ */
+async function waitForReviewPassed(
+  cosmos: ReturnType<typeof createTenantScopedCosmos>,
+  orderId: string,
+  timeoutMs = 10_000,
+  intervalMs = 1_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const order = await cosmos.getOrder(orderId);
+    const status = order?.status;
+    // Terminal-for-our-purposes states: stop waiting.
+    if (
+      status === 'review_passed' ||
+      status === 'settled' ||
+      status === 'bookkept' ||
+      status === 'review_failed' ||
+      status === 'cancelled'
+    ) {
+      return;
+    }
+    if (Date.now() >= deadline) {
+      logger.warn({ orderId, status }, 'waitForReviewPassed timed out');
+      return;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
 }
 
 async function safeTransition(
