@@ -507,3 +507,27 @@ PR merge→settlement_completed が約5秒。送金 tx `0x4cc464b7...`（block 3
 4. Topic `OrderCreate`（HTTP action → `https://func-gigflow-28fa80.azurewebsites.net/api/copilot/webhook`、
    Adaptive Card は infra/copilot-studio/cards/）。
 5. Teams チャネル発行 + 管理センター承認 + インストール。
+
+---
+
+## 17. 提出に向けた修正（2026-05-23）
+
+### 17-1. Cosmos の re-tenant（companyId == 実 tid）
+
+- 問題: seed の `companyId="demo-tenant-0001"` が実 Entra `tid`(GUID) と不一致で、
+  Dashboard/Functions の `companyId==token.tid` 絞り込みにより**サインインしても注文一覧が空**。
+- 対応: `scripts/retenant-cosmos.ts` で orders(51)/tenants(1)/accounts(1) の companyId を
+  `3894eada-7a32-44e1-9c8b-6098a6a92a2d` に付け替え（コミット）。
+  `createTenantScopedCosmos(実tid).listOrders()` が 51件返すことを確認。
+
+### 17-2. Dashboard の NextAuth Server error 修正
+
+- 症状: サインイン時に `Server error / There is a problem with the server configuration`。
+  ログに `CallbackRouteError: JWTs must use Compact JWS serialization`（microsoft-entra-id）。
+- 原因: Container App の `AUTH_ENTRA_CLIENT_SECRET` が古い/不正な値（40文字, `OLl...`）だった。
+- 対応: `app-gigflow-dashboard` に新シークレット `dashboard-nextauth-2`（2年）を発行し、
+  Container App env と Key Vault `dashboard-client-secret` を更新。新リビジョン --0000004 が
+  `Ready in 340ms` で正常起動。activeRevisionsMode=Single, traffic=Latest 100%。
+- 確認待ち: ブラウザでの実サインイン（ユーザー作業）。
+
+### 残: app-gigflow-dashboard は signInAudience=AzureADMultipleOrgs のまま（common issuer と整合）。
