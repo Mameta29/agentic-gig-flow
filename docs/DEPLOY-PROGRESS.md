@@ -531,3 +531,34 @@ PR merge→settlement_completed が約5秒。送金 tx `0x4cc464b7...`（block 3
 - 確認待ち: ブラウザでの実サインイン（ユーザー作業）。
 
 ### 残: app-gigflow-dashboard は signInAudience=AzureADMultipleOrgs のまま（common issuer と整合）。
+
+---
+
+## 18. Dashboard "Server error" 真因＝無効な client secret（2026-05-23 解決）
+
+長時間ハマったので記録。**症状**: Dashboard サインインで `Server error / There is a
+problem with the server configuration`、ログに `CallbackRouteError: az: JWTs must use
+Compact JWS serialization, JWT must be a string`（microsoft-entra-id）。
+
+**外れた仮説**（どれも効かなかった）:
+- client secret の期限切れ → reset しても直らず
+- issuer='common' とトークンの iss 不一致 → AUTH_ENTRA_TENANT_ID で実テナント固定 → 効かず
+- next-auth beta.25 の profile() が Graph 写真取得で壊れる既知バグ → profile() 上書き → 効かず
+
+**真因（実証で特定）**: Container App の `AUTH_ENTRA_CLIENT_SECRET` が**無効な値**だった。
+token endpoint に client_credentials で問い合わせると `AADSTS7000215: Invalid client
+secret provided`。id_token が undefined で返り、それを decodeJwt して `Compact JWS` エラーに
+化けていた（nextauthjs/next-auth#12560 の @rikrose コメントと同一現象）。
+
+**根本原因**: この環境の `az ad app credential reset`（azure-cli 2.86.0）が `password` を
+正しく返さない（270文字の不正値 or 空文字）。**Microsoft Graph の applications/{objId}/addPassword
+を直接叩くと正常な40文字の secret が得られる**:
+```
+az rest --method POST --url "https://graph.microsoft.com/v1.0/applications/{objId}/addPassword" \
+  --body '{"passwordCredential":{"displayName":"..."}}'  # → .secretText が正しい値
+```
+発行後 client_credentials で token が取れるか即検証してから Container App env / Key Vault に投入する。
+
+**教訓**: Entra の "Compact JWS" エラーは大半が「無効/誤った client secret で id_token が
+返っていない」。issuer/profile をいじる前に **token endpoint に client_credentials で叩いて
+secret が有効か検証**するのが最短の切り分け。`az ad app credential reset` は信用せず Graph addPassword を使う。
