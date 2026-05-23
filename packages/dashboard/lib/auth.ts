@@ -50,6 +50,8 @@ const MCP_APP_ID = process.env.MCP_APP_ID || 'gigflow-mcp';
 // to the real tenant id for this single-tenant demo deployment.
 const TENANT_ID = process.env.AUTH_ENTRA_TENANT_ID || 'common';
 
+const ENTRA_SCOPE = `openid profile email offline_access api://${FUNCTIONS_APP_ID}/orders.write api://${FUNCTIONS_APP_ID}/orders.read api://${MCP_APP_ID}/mcp.read`;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   debug: true,
@@ -58,11 +60,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.AUTH_ENTRA_CLIENT_ID,
       clientSecret: process.env.AUTH_ENTRA_CLIENT_SECRET,
       issuer: `https://login.microsoftonline.com/${TENANT_ID}/v2.0`,
-      authorization: {
-        params: {
-          scope: `openid profile email offline_access api://${FUNCTIONS_APP_ID}/orders.write api://${FUNCTIONS_APP_ID}/orders.read api://${MCP_APP_ID}/mcp.read`,
-        },
-      },
+      authorization: { params: { scope: ENTRA_SCOPE } },
+      // Entra v2 token endpoint rejects the code exchange when `scope` is empty
+      // (AADSTS28003). Auth.js beta.25 does not forward the authorization scope
+      // to the token request, so pass it explicitly here.
+      token: { params: { scope: ENTRA_SCOPE } },
       // Override the default profile() — it calls Microsoft Graph for the user
       // photo, which breaks under Next.js standalone/Docker on entra-id
       // beta.25 ("JWTs must use Compact JWS serialization"). Read claims from
