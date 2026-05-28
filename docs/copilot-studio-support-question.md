@@ -37,6 +37,21 @@ CSP の unsafe-eval 違反は report-only のため無害と判断。
 2. 既定環境が japaneast であることが影響するか。別リージョンの環境を作るべきか。
 3. このトライアルライセンスでホームを開くためにテナント側で追加で有効化すべき設定はあるか。
 
-## 回答（来たら追記）
+## 回答（2026-05-27・解決済み）
 
-（待ち）
+Microsoft の Geek Fujiwara 氏より回答。**真因は「既定環境(default)で Copilot Studio を使おうとしていた」こと**。
+viral-signup（トライアル自動サインアップ）は既定環境では正しくプロビジョニングされず 404 になる。
+→ **専用の「開発者環境」を作ればよい**（既定環境での Copilot Studio 利用は非推奨）。
+
+参考: https://learn.microsoft.com/ja-jp/microsoft-copilot-studio/environments-first-run-experience
+
+### 解決手順（実証済み）
+1. https://aka.ms/ppac （Power Platform 管理センター）で**開発者環境を新規作成**。
+   - Add Dataverse = **Yes**（必須。これが無いとエージェント作成に進めない）
+   - Deploy sample apps and data = No、Language/Currency は任意（日本語/JPY 推奨）
+2. https://make.powerapps.com/ で作成した開発者環境を選択。
+3. 詳細 > エージェント > 新しいエージェント作成（または Copilot Studio 直接でもこの環境なら可）。
+
+### 結果
+**開発者環境 `dev-jpn-a523bcd3` で Copilot Studio のホーム画面（"What would you like to build?"）が正常に開いた。**
+viral-signup 404 は完全に消滅。これで Agent（発注 UI）の構築に進める。

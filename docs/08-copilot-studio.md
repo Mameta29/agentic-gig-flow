@@ -358,6 +358,14 @@ Copilot Studio の **Test your agent** パネルで Topic を発火し、Adaptiv
 | OAuth トークンが渡らない | scope 不足 | App Registration の API permissions を再確認 |
 | proactive message が届かない | conversationReference が古い | Topic 発火のたびに reference を上書き保存 |
 | Trigger phrase が拾われない | LLM 判定の閾値 | "Use this topic" ヒントをインストラクションに追加 |
+| home が永続ローディング / `viral-signup 404` | 既定環境(default)で Copilot Studio を使おうとしている | **開発者環境を新規作成**(aka.ms/ppac、Add Dataverse=Yes)してそこで使う。`docs/copilot-studio-support-question.md` 参照 |
+| HTTP action が 400 BadRequest | Body を「JSON content」モードで Power Fx 式にすると壊れて送られる | Body を **「Raw content」+ Content Type=application/json**、Content を Power Fx 文字列式 `"{""rawDescription"": """ & Topic.x & ...` にする |
+| Adaptive Card に `${var}` がそのまま表示 | カードノードは `${}` を解決しない | カードを **Formula モード**にし、値を裸の `Topic.workerName`(クォート無し)、数値は `Text(Topic.amountJpyc) & " JPYC"` で連結 |
+| HTTP action が 401 | Authorization ヘッダが無い | `Authorization` ヘッダ Value を Formula で `"Bearer " & System.User.AccessToken` にする(OBO)。bot app の Entra に redirect URI `https://token.botframework.com/.auth/web/redirect` 登録必須 |
+| HTTP action が 500 (contract_failed: worker 不一致) | 発注文の呼称(「sato」)を gpt-4o が worker(displayName "Sato Taro"/githubLogin "ei-chan-bot")に結び付けられず reject | `contract.ts` の System Prompt の受注者マッチングを寛容化(姓のみ/部分一致/大小無視、workers の実値を採用)。`§抽出ルール` 参照 |
+| 二重確認(カード + テキスト確認が両方出る) | 生成AI本体がトピックのカードと別にテキスト確認を生成 | Instructions に「確認は OrderCreate トピックのカードに任せ、自分でテキスト確認を重ねるな」と明記 |
+
+> **認証の確定値(MAMETA テナント)**: bot ClientID `5f03c4f8-87ce-4b38-90be-86dc0e0eb7a3` / secret は KV `bot-client-secret` / scope `api://888bf613-f88b-48d0-8f67-d952efb74ebd/orders.write` / tenant `3894eada-7a32-44e1-9c8b-6098a6a92a2d`。Functions(888bf613)は orders.write/read を公開済み・bot→Functions の管理者同意(AllPrincipals)済み。開発者環境 `dev-jpn-a523bcd3`。
 
 ---
 
