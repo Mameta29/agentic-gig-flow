@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="30.0.4">
+  <diagram name="Agentic-Gig-Flow">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title block -->
+        <mxCell id="title" value="Agentic Gig-Flow &#8212; Microsoft 完結アーキテクチャ" style="text;html=1;fontSize=22;fontStyle=1;align=left;verticalAlign=middle;fontColor=#0078D4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="800" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="4ユーザー × 4入口 → 共通の自律エンジン（4 Agent / Foundry gpt-4o）→ JPYC決済 / Cosmos記録" style="text;html=1;fontSize=13;align=left;verticalAlign=middle;fontColor=#5F6368;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="900" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Users row ===== -->
+        <mxCell id="usersBand" value="4人の登場人物（同じ会社・同じ Entra テナント）" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#5F6368;fillColor=#F8F9FA;verticalAlign=top;fontStyle=1;dashed=1;fontColor=#5F6368;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1520" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="userPM" value="田中CTO（PM）&#xa;発注する" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="usersBand">
+          <mxGeometry x="40" y="35" width="300" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="userWk" value="Sato（Worker）&#xa;開発して PR を出す" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="usersBand">
+          <mxGeometry x="420" y="35" width="300" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="userAcc" value="山田（経理）&#xa;仕訳・源泉徴収・支払調書を確認" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="usersBand">
+          <mxGeometry x="800" y="35" width="300" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="userExec" value="大野（経営者）&#xa;月次の外注費を把握" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="usersBand">
+          <mxGeometry x="1180" y="35" width="300" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Entra ID band (covers all entries) ===== -->
+        <mxCell id="entraBand" value="Microsoft Entra ID &#8212; 全入口を統合する認証層（companyId = tenantId でテナント分離）" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#0078D4;fillColor=none;verticalAlign=top;fontStyle=1;fontColor=#0078D4;dashed=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="230" width="1520" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="entraIcon" value="Entra ID" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=none;fillColor=#FFFFFF;strokeColor=none;html=1;fontSize=10;align=center;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;shape=mxgraph.azure_2019.azure_active_directory;" vertex="1" parent="entraBand">
+          <mxGeometry x="2" y="95" width="50" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 4 Entries (inside Entra band) ===== -->
+        <mxCell id="entCSbox" value="Copilot Studio Bot（Teams）= PM の発注UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e7f1ff;strokeColor=#0078D4;fontSize=11;verticalAlign=bottom;" vertex="1" parent="entraBand">
+          <mxGeometry x="60" y="55" width="290" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="entCSIcon" value="" style="sketch=0;outlineConnect=0;fillColor=#FFFFFF;strokeColor=none;html=1;shape=mxgraph.azure_2019.bot_services;" vertex="1" parent="entCSbox">
+          <mxGeometry x="117" y="15" width="56" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="entGH" value="GitHub = Worker の開発・PR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;verticalAlign=middle;" vertex="1" parent="entraBand">
+          <mxGeometry x="440" y="55" width="290" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="entDashBox" value="Dashboard（Next.js / Container Apps）= 経理の照会UI（仕訳/源泉徴収/支払調書）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e7f1ff;strokeColor=#0078D4;fontSize=11;verticalAlign=bottom;" vertex="1" parent="entraBand">
+          <mxGeometry x="820" y="55" width="290" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="entDashIcon" value="" style="sketch=0;outlineConnect=0;fillColor=#FFFFFF;strokeColor=none;html=1;shape=mxgraph.azure_2019.container_instances;" vertex="1" parent="entDashBox">
+          <mxGeometry x="117" y="15" width="56" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="entPBIBox" value="Power BI + Fabric Data Agent = 経営者の自然言語 BI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e7f1ff;strokeColor=#0078D4;fontSize=11;verticalAlign=bottom;" vertex="1" parent="entraBand">
+          <mxGeometry x="1200" y="55" width="290" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="entPBIIcon" value="" style="sketch=0;outlineConnect=0;fillColor=#FFFFFF;strokeColor=none;html=1;shape=mxgraph.azure_2019.azure_synapse_analytics;" vertex="1" parent="entPBIBox">
+          <mxGeometry x="117" y="15" width="56" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Azure Functions ===== -->
+        <mxCell id="fnBand" value="Azure Functions（Node 22 / サーバーレス）" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#0078D4;fillColor=none;verticalAlign=top;fontStyle=1;fontColor=#0078D4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="460" width="1520" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="fnIcon" value="Azure Functions" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#FFFFFF;strokeColor=none;html=1;fontSize=11;align=center;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;shape=mxgraph.azure_2019.function_apps;" vertex="1" parent="fnBand">
+          <mxGeometry x="20" y="35" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="fnCopilot" value="/api/copilot/webhook" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0078D4;fontSize=11;" vertex="1" parent="fnBand">
+          <mxGeometry x="150" y="45" width="240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="fnOrders" value="/api/orders/create ・ list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0078D4;fontSize=11;" vertex="1" parent="fnBand">
+          <mxGeometry x="630" y="45" width="240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="fnWebhook" value="/api/webhook/github" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0078D4;fontSize=11;" vertex="1" parent="fnBand">
+          <mxGeometry x="1110" y="45" width="240" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Agents ===== -->
+        <mxCell id="agBand" value="共通の自律エンジン &#8212; 4 Agent（Azure OpenAI / Foundry gpt-4o）" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#82b366;fillColor=#f0f8ee;verticalAlign=top;fontStyle=1;fontColor=#5b8a3c;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="610" width="1520" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="agContract" value="Contract Agent&#xa;発注の構造化→Issue起票&#xa;(gpt-4o)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="agBand">
+          <mxGeometry x="40" y="45" width="320" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="agReview" value="Review Agent&#xa;diff×検収基準を根拠引用で判定&#xa;(gpt-4o)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="agBand">
+          <mxGeometry x="410" y="45" width="320" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="agSettle" value="Settlement Agent&#xa;★ LLM不使用＝決定的&#xa;ガードレール＋冪等送金" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#e03131;fontSize=11;fontStyle=1;" vertex="1" parent="agBand">
+          <mxGeometry x="780" y="45" width="320" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="agBook" value="Bookkeeping Agent&#xa;仕訳/源泉徴収/支払調書&#xa;(gpt-4o)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="agBand">
+          <mxGeometry x="1150" y="45" width="320" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Foundation row ===== -->
+        <mxCell id="foundBand" value="基盤（すべて Managed Identity ＝ コードに鍵なし）" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#5F6368;fillColor=#F8F9FA;verticalAlign=top;fontStyle=1;dashed=1;fontColor=#5F6368;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="800" width="980" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="cosmos" value="Azure Cosmos DB&#xa;orders / events（companyId 分離）" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#FFFFFF;strokeColor=none;html=1;fontSize=11;align=center;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;shape=mxgraph.azure_2019.azure_cosmos_db;" vertex="1" parent="foundBand">
+          <mxGeometry x="80" y="45" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="kv" value="Key Vault&#xa;ウォレット秘密鍵 / PAT" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#FFFFFF;strokeColor=none;html=1;fontSize=11;align=center;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;shape=mxgraph.azure_2019.key_vaults;" vertex="1" parent="foundBand">
+          <mxGeometry x="440" y="45" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="appi" value="Application Insights&#xa;orderId で全 Agent を分散トレース" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#FFFFFF;strokeColor=none;html=1;fontSize=11;align=center;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;shape=mxgraph.azure_2019.application_insights;" vertex="1" parent="foundBand">
+          <mxGeometry x="760" y="45" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="openai" value="Azure OpenAI（Foundry / gpt-4o）" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#FFFFFF;strokeColor=none;html=1;fontSize=11;align=center;verticalAlign=top;verticalLabelPosition=bottom;labelPosition=center;shape=mxgraph.azure_2019.cognitive_services;" vertex="1" parent="foundBand">
+          <mxGeometry x="260" y="45" width="56" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Polygon / JPYC (right of foundation) ===== -->
+        <mxCell id="polygon" value="Polygon × JPYC&#xa;transfer() で円建て即時送金" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6f0;strokeColor=#d6336c;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="830" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Fabric (far right) ===== -->
+        <mxCell id="fabric" value="Microsoft Fabric&#xa;Cosmos ミラー → Data Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e7f1ff;strokeColor=#0078D4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="830" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===== EDGES: users -> entries ===== -->
+        <mxCell id="e_pm_cs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="userPM" target="entCSbox">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_pm_dash" value="バックアップ" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;html=1;fontSize=10;" edge="1" parent="1" source="userPM" target="entDashBox">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_wk_gh" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="userWk" target="entGH">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_acc_dash" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="userAcc" target="entDashBox">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_exec_pbi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="userExec" target="entPBIBox">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== entries -> functions ===== -->
+        <mxCell id="e_cs_fn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="entCSbox" target="fnCopilot">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_dash_fn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="entDashBox" target="fnOrders">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_gh_fn" value="PR opened / merged (webhook)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;" edge="1" parent="1" source="entGH" target="fnWebhook">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== functions -> agents ===== -->
+        <mxCell id="e_fnc_contract" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="fnCopilot" target="agContract">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_fno_contract" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="fnOrders" target="agContract">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_fnw_review" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="fnWebhook" target="agReview">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== RED LINE: merge -> settlement -> polygon (山場) ===== -->
+        <mxCell id="e_fnw_settle" value="PR merged" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#e03131;strokeWidth=4;fontColor=#e03131;fontStyle=1;fontSize=11;" edge="1" parent="1" source="fnWebhook" target="agSettle">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_settle_polygon" value="transfer JPYC（約3秒で着金）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#e03131;strokeWidth=4;fontColor=#e03131;fontStyle=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="agSettle" target="polygon">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== agents -> foundation ===== -->
+        <mxCell id="e_contract_cosmos" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="agContract" target="cosmos">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_settle_kv" value="秘密鍵取得" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;" edge="1" parent="1" source="agSettle" target="kv">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_book_cosmos" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="agBook" target="cosmos">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_settle_book" value="完了→記帳" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;" edge="1" parent="1" source="agSettle" target="agBook">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== book -> copilot notify ===== -->
+        <mxCell id="e_book_cs" value="完了通知（Adaptive Card）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;fontSize=10;" edge="1" parent="1" source="agBook" target="entCSbox">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== dashboard -> cosmos (query) ===== -->
+        <mxCell id="e_dash_cosmos" value="注文照会" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;fontSize=10;" edge="1" parent="1" source="entDashBox" target="cosmos">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== cosmos -> fabric -> pbi ===== -->
+        <mxCell id="e_cosmos_fabric" value="ミラーリング" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;" edge="1" parent="1" source="cosmos" target="fabric">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_fabric_pbi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="fabric" target="entPBIBox">
+          <mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="凡例：赤線＝山場（PR merge → Settlement → 約3秒で JPYC 着金）。Settlement のみ LLM 不使用の決定的処理。" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#e03131;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1000" width="1100" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
