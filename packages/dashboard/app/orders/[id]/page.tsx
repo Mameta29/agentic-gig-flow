@@ -101,6 +101,16 @@ export default async function OrderDetailPage({
               ⚠️ 税理士確認推奨
             </p>
           )}
+          {order.bookkeepingArtifacts.paymentStatementMarkdown && (
+            <details className="mt-3">
+              <summary className="cursor-pointer font-medium">
+                支払調書
+              </summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-800">
+                {order.bookkeepingArtifacts.paymentStatementMarkdown}
+              </pre>
+            </details>
+          )}
         </section>
       )}
     </main>
