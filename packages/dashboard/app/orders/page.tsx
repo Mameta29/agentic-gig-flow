@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { listOrders } from '@/lib/api';
+import { AuthExpiredError, listOrders } from '@/lib/api';
 import { txUrl } from '@/lib/explorer';
 import { OrdersStream } from '@/components/orders-stream';
 
@@ -16,8 +17,14 @@ type OrderRow = {
 
 export default async function OrdersPage() {
   const session = await auth();
-  if (!session) return null;
-  const { orders } = (await listOrders()) as { orders: OrderRow[] };
+  if (!session) redirect('/api/auth/signin');
+  let orders: OrderRow[];
+  try {
+    ({ orders } = (await listOrders()) as { orders: OrderRow[] });
+  } catch (err) {
+    if (err instanceof AuthExpiredError) redirect('/api/auth/signin');
+    throw err;
+  }
   return (
     <main>
       <div className="mb-4 flex items-center justify-between">

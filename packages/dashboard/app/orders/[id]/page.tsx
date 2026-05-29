@@ -1,5 +1,6 @@
+import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { listOrders } from '@/lib/api';
+import { AuthExpiredError, listOrders } from '@/lib/api';
 import { txUrl } from '@/lib/explorer';
 
 type OrderRow = {
@@ -27,8 +28,14 @@ export default async function OrderDetailPage({
 }) {
   const { id } = await params;
   const session = await auth();
-  if (!session) return null;
-  const { orders } = (await listOrders()) as { orders: OrderRow[] };
+  if (!session) redirect('/api/auth/signin');
+  let orders: OrderRow[];
+  try {
+    ({ orders } = (await listOrders()) as { orders: OrderRow[] });
+  } catch (err) {
+    if (err instanceof AuthExpiredError) redirect('/api/auth/signin');
+    throw err;
+  }
   const order = orders.find((o) => o.id === id);
   if (!order) {
     return <main>order not found</main>;

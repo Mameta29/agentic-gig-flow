@@ -3,20 +3,39 @@ import { auth } from './auth';
 const FUNCTIONS_BASE_URL =
   process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071';
 
+// Thrown when the session is missing or the Entra access token has expired
+// (Functions replies 401). The Entra access_token lives ~1h and is not
+// refreshed, so a judge returning later hits this. Pages catch it and redirect
+// to sign-in instead of crashing into a blank "Application error" screen.
+export class AuthExpiredError extends Error {
+  constructor() {
+    super('auth expired');
+    this.name = 'AuthExpiredError';
+  }
+}
+
 async function authedFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
   const session = await auth();
   if (!session?.accessToken) {
-    throw new Error('not authenticated');
+    throw new AuthExpiredError();
   }
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${session.accessToken}`);
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  return fetch(`${FUNCTIONS_BASE_URL}${path}`, { ...init, headers, cache: 'no-store' });
+  const res = await fetch(`${FUNCTIONS_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    cache: 'no-store',
+  });
+  if (res.status === 401) {
+    throw new AuthExpiredError();
+  }
+  return res;
 }
 
 export async function listOrders(filter: {
