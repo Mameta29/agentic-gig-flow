@@ -7,8 +7,53 @@ import {
   createTenantScopedCosmos,
   type TenantScopedCosmos,
 } from '../lib/cosmos.js';
+import { createPrComment as defaultCreatePrComment } from '../lib/github.js';
+import { env } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
 import { trackEvent, trackException } from '../lib/telemetry.js';
+
+function polygonscanTxUrl(txHash: string): string {
+  const isAmoy = env.polygonChainId() === 80002;
+  const base = isAmoy ? 'https://amoy.polygonscan.com' : 'https://polygonscan.com';
+  return `${base}/tx/${txHash}`;
+}
+
+function shortAddr(addr: string): string {
+  return addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
+}
+
+function buildSettlementComment(opts: {
+  amountJpyc: number;
+  recipient: string;
+  txHash: string;
+  blockNumber: number;
+  mergedAt: string;
+  settledAt: string;
+  orderId: string;
+}): string {
+  const url = polygonscanTxUrl(opts.txHash);
+  const mergedMs = Date.parse(opts.mergedAt);
+  const settledMs = Date.parse(opts.settledAt);
+  const latencyLine =
+    Number.isFinite(mergedMs) && Number.isFinite(settledMs)
+      ? `| 所要時間 (merge → 着金) | 約 ${((settledMs - mergedMs) / 1000).toFixed(1)} 秒 |\n`
+      : '';
+  return [
+    '## 💴 JPYC 送金完了 — Settled by Agentic Gig-Flow',
+    '',
+    '| 項目 | 値 |',
+    '|---|---|',
+    `| 金額 | ${opts.amountJpyc.toLocaleString()} JPYC |`,
+    `| 受取アドレス | \`${shortAddr(opts.recipient)}\` |`,
+    `| Tx Hash | [\`${opts.txHash}\`](${url}) |`,
+    `| ブロック | ${opts.blockNumber} |`,
+    latencyLine.trimEnd(),
+    '',
+    `Order ID: \`${opts.orderId}\``,
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
+}
 
 export const MAX_AMOUNT_PER_TX = 100_000;
 export const MAX_TX_PER_DAY_PER_AGENT = 10;
@@ -39,6 +84,7 @@ export type SettlementDeps = {
     to: string;
     amountJpyc: number;
   }) => Promise<TransferResult>;
+  createPrComment?: typeof defaultCreatePrComment;
   now?: () => Date;
 };
 
@@ -90,6 +136,7 @@ export async function runSettlement(
 ): Promise<SettlementAgentOutput> {
   const cosmos = deps.cosmos ?? createTenantScopedCosmos(input.tenantId);
   const transfer = deps.transferJpyc ?? defaultTransferJpyc;
+  const createPrComment = deps.createPrComment ?? defaultCreatePrComment;
   const now = deps.now ?? (() => new Date());
 
   const order = await cosmos.getOrder(input.orderId);
@@ -187,6 +234,36 @@ export async function runSettlement(
     },
     'settlement completed',
   );
+
+  // Post a settlement comment on the PR (best-effort — do not block the order on failure).
+  if (order.prNumber) {
+    try {
+      await createPrComment({
+        repository: order.repository,
+        prNumber: order.prNumber,
+        body: buildSettlementComment({
+          amountJpyc: order.amountJpyc,
+          recipient: order.workerWallet,
+          txHash: result.txHash,
+          blockNumber: Number(result.blockNumber),
+          mergedAt: input.prMergeEvent.mergedAt,
+          settledAt,
+          orderId: order.id,
+        }),
+      });
+      await cosmos.appendEvent({
+        orderId: order.id,
+        agent: 'settlement',
+        type: 'settlement_pr_comment_posted',
+        payload: { prNumber: order.prNumber, txHash: result.txHash },
+      });
+    } catch (err) {
+      logger.warn(
+        { err: String(err), orderId: order.id, prNumber: order.prNumber },
+        'failed to post settlement PR comment; continuing',
+      );
+    }
+  }
 
   return {
     orderId: order.id,

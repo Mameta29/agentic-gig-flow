@@ -16,6 +16,7 @@ export type EventType =
   | 'settlement_started'
   | 'settlement_completed'
   | 'settlement_failed'
+  | 'settlement_pr_comment_posted'
   | 'bookkeeping_started'
   | 'bookkeeping_completed'
   | 'mcp_query'

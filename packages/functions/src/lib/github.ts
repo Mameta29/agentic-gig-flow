@@ -119,6 +119,21 @@ export async function submitReview(opts: {
   });
 }
 
+export async function createPrComment(opts: {
+  repository: string;
+  prNumber: number;
+  body: string;
+}): Promise<void> {
+  const o = await getOctokit();
+  const { owner, repo } = parseRepo(opts.repository);
+  await o.issues.createComment({
+    owner,
+    repo,
+    issue_number: opts.prNumber,
+    body: opts.body,
+  });
+}
+
 export async function mergePr(opts: {
   repository: string;
   prNumber: number;
