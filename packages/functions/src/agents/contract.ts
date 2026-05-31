@@ -135,12 +135,25 @@ export async function runContract(
 
   const orderId = uuid();
 
+  // Single-worker tenants: force-bind the only worker so the LLM never has to
+  // resolve human names like 「田中」「sato」 against an unrelated displayName.
+  const forcedWorker =
+    !input.workerGithubLogin && workers.length === 1 && workers[0]?.worker
+      ? workers[0].worker
+      : undefined;
+  if (forcedWorker) {
+    logger.info(
+      { mappedTo: forcedWorker.githubLogin },
+      'contract: single-worker tenant — binding worker before LLM call',
+    );
+  }
+
   const userMessage = {
     orderRequest: {
       requesterId: input.requesterId,
       rawDescription: input.rawDescription,
-      workerGithubLogin: input.workerGithubLogin,
-      workerWallet: input.workerWallet,
+      workerGithubLogin: input.workerGithubLogin ?? forcedWorker?.githubLogin,
+      workerWallet: input.workerWallet ?? forcedWorker?.wallet,
       repository: input.repository,
       today: input.today,
     },
@@ -154,6 +167,16 @@ export async function runContract(
       })),
       spendingLimitPerOrder: tenant?.spendingLimitPerOrder ?? 100_000,
     },
+    ...(forcedWorker
+      ? {
+          MUST_USE_THIS_WORKER: {
+            githubLogin: forcedWorker.githubLogin,
+            wallet: forcedWorker.wallet,
+            instruction:
+              'rawDescription 中にどんな人名(田中/田口/sato 等)が現れても、必ずこの githubLogin/wallet を validateOrderRequest / createGithubIssue / saveOrder に渡すこと。worker 不一致を理由にエラー終了してはならない。',
+          },
+        }
+      : {}),
     generatedOrderId: orderId,
   };
 
@@ -248,6 +271,10 @@ export async function runContract(
     },
   ];
 
+  // Canonical worker resolved during validation; reused to overwrite any
+  // hallucinated login/wallet/assignee the LLM emits in later tool calls.
+  let resolvedWorker: { githubLogin: string; wallet: string } | null = null;
+
   const toolImpls = {
     validateOrderRequest: async (args: Record<string, unknown>) => {
       const parsed = ParsedRequestSchema.parse(args);
@@ -258,11 +285,31 @@ export async function runContract(
       if (parsed.amountJpyc > limit) {
         return { ok: false, error: 'over_spending_limit' };
       }
-      // worker presence check
-      const known = workers.find(
+      // worker presence check (with single-worker fallback for demo tenants)
+      let known = workers.find(
         (w) => w.worker?.githubLogin === parsed.workerGithubLogin,
       );
-      if (!known) return { ok: false, error: 'unknown_worker' };
+      const onlyWorker =
+        forcedWorker ?? (workers.length === 1 ? workers[0]?.worker : undefined);
+      if (!known && onlyWorker) {
+        logger.info(
+          {
+            requested: parsed.workerGithubLogin,
+            mappedTo: onlyWorker.githubLogin,
+          },
+          'contract: single-worker fallback applied',
+        );
+        parsed.workerGithubLogin = onlyWorker.githubLogin;
+        parsed.workerWallet = onlyWorker.wallet;
+        args.workerGithubLogin = onlyWorker.githubLogin;
+        args.workerWallet = onlyWorker.wallet;
+        known = workers[0];
+      }
+      if (!known || !known.worker) return { ok: false, error: 'unknown_worker' };
+      resolvedWorker = {
+        githubLogin: known.worker.githubLogin,
+        wallet: known.worker.wallet,
+      };
       return { ok: true };
     },
 
@@ -274,11 +321,13 @@ export async function runContract(
           error: 'issue_body_missing_orderId_marker',
         };
       }
+      const assignee = resolvedWorker?.githubLogin
+        ?? (args.assignee ? String(args.assignee) : undefined);
       const created = await createIssue({
         repository: String(args.repository),
         title: String(args.title),
         body,
-        assignee: args.assignee ? String(args.assignee) : undefined,
+        assignee,
         labels: (args.labels as string[] | undefined) ?? undefined,
       });
       return { ok: true, ...created };
@@ -293,8 +342,8 @@ export async function runContract(
         id: orderId,
         companyId: input.tenantId,
         requesterId: input.requesterId,
-        workerGithubLogin: String(args.workerGithubLogin),
-        workerWallet: String(args.workerWallet),
+        workerGithubLogin: resolvedWorker?.githubLogin ?? String(args.workerGithubLogin),
+        workerWallet: resolvedWorker?.wallet ?? String(args.workerWallet),
         description: String(args.description),
         acceptanceCriteria: (args.acceptanceCriteria as string[]) ?? [],
         amountJpyc: Number(args.amountJpyc),
