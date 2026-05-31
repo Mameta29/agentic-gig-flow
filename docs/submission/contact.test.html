@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>contact section tests — marche.example.co.jp</title>
+  </head>
+  <body>
+    <h1>お問い合わせセクションのテスト</h1>
+    <p>
+      対象ファイル <code>index.html</code> を <code>iframe</code>
+      で読み込み、お問い合わせセクションの構造と内容を検証します。
+    </p>
+    <ul id="results"></ul>
+    <iframe id="target" src="../index.html" style="width:100%;height:300px;border:1px solid #ccc"></iframe>
+
+    <script>
+      const results = document.getElementById('results');
+      function record(name, ok, detail) {
+        const li = document.createElement('li');
+        li.textContent = `${ok ? '✅' : '❌'} ${name}${detail ? ' — ' + detail : ''}`;
+        li.style.color = ok ? 'green' : 'red';
+        results.appendChild(li);
+        return ok;
+      }
+
+      const iframe = document.getElementById('target');
+      iframe.addEventListener('load', () => {
+        const doc = iframe.contentDocument;
+        if (!doc) {
+          record('iframe loaded', false, 'no contentDocument');
+          return;
+        }
+
+        const section = doc.querySelector('section#contact');
+        record('section#contact が存在する', !!section);
+
+        if (section) {
+          const h2 = section.querySelector('h2');
+          record(
+            'section#contact 内に <h2> がある',
+            !!h2 && /お問い合わせ/.test(h2.textContent || ''),
+            h2 ? `text="${h2.textContent}"` : 'no h2',
+          );
+          const dts = Array.from(section.querySelectorAll('dl.company-info dt'));
+          record(
+            'section#contact 内に dl.company-info / dt がある',
+            dts.length >= 2,
+            `dt count=${dts.length}`,
+          );
+        }
+
+        const navLink = doc.querySelector('header .nav a[href="#contact"]');
+        record('ナビに <a href="#contact"> がある', !!navLink, navLink ? '' : 'missing');
+
+        const html = doc.documentElement.outerHTML;
+        record(
+          'HTML が <!DOCTYPE html> から始まる構造',
+          /^<!DOCTYPE html>/i.test(doc.doctype ? '<!DOCTYPE html>' : ''),
+          'doctype present',
+        );
+        record('ID 重複なし (#contact / #company)', !!doc.querySelector('#company') && !!doc.querySelector('#contact'));
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>index.html structure tests — marche.example.co.jp</title>
+  </head>
+  <body>
+    <h1>index.html 基本構造テスト</h1>
+    <p>
+      お問い合わせセクションを含まない状態 (発注前の main) の
+      <code>index.html</code> を検証します。お問い合わせセクション追加 PR を
+      出す前の grep チェック用ベースとしても使えます。
+    </p>
+    <ul id="results"></ul>
+    <iframe id="target" src="../index.html" style="width:100%;height:300px;border:1px solid #ccc"></iframe>
+
+    <script>
+      const results = document.getElementById('results');
+      function record(name, ok, detail) {
+        const li = document.createElement('li');
+        li.textContent = `${ok ? '✅' : '❌'} ${name}${detail ? ' — ' + detail : ''}`;
+        li.style.color = ok ? 'green' : 'red';
+        results.appendChild(li);
+        return ok;
+      }
+
+      const iframe = document.getElementById('target');
+      iframe.addEventListener('load', () => {
+        const doc = iframe.contentDocument;
+        if (!doc) {
+          record('iframe loaded', false, 'no contentDocument');
+          return;
+        }
+
+        // 基本構造
+        record(
+          'lang="ja" の <html> である',
+          doc.documentElement.getAttribute('lang') === 'ja',
+        );
+        record(
+          '<title> が存在する',
+          !!doc.title && doc.title.length > 0,
+          `title="${doc.title}"`,
+        );
+
+        // ナビゲーション
+        const navLinks = Array.from(doc.querySelectorAll('header .nav a'));
+        record(
+          'ナビに最低 3 つのリンクがある',
+          navLinks.length >= 3,
+          `count=${navLinks.length}`,
+        );
+        const navHrefs = navLinks.map((a) => a.getAttribute('href'));
+        for (const expected of ['#services', '#works', '#company']) {
+          record(
+            `ナビに ${expected} へのリンクがある`,
+            navHrefs.includes(expected),
+          );
+        }
+
+        // 主要セクション
+        for (const id of ['services', 'works', 'company']) {
+          record(
+            `section#${id} が存在する`,
+            !!doc.querySelector(`section#${id}`),
+          );
+        }
+
+        // 会社情報の dl.company-info
+        const company = doc.querySelector('section#company dl.company-info');
+        record('section#company に dl.company-info がある', !!company);
+        if (company) {
+          const dts = company.querySelectorAll('dt');
+          const dds = company.querySelectorAll('dd');
+          record(
+            'dl.company-info の dt と dd が同数',
+            dts.length === dds.length && dts.length > 0,
+            `dt=${dts.length} dd=${dds.length}`,
+          );
+        }
+
+        // ID 重複の不在
+        const allIds = Array.from(doc.querySelectorAll('[id]')).map((e) => e.id);
+        const dupes = allIds.filter((id, i) => allIds.indexOf(id) !== i);
+        record('ID 重複がない', dupes.length === 0, dupes.join(', ') || 'none');
+
+        // この時点ではお問い合わせは無いことが期待値
+        record(
+          '(発注前) section#contact は存在しない',
+          !doc.querySelector('section#contact'),
+        );
+      });
+    </script>
+  </body>
+</html>
