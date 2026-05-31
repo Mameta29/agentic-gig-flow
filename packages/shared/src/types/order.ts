@@ -78,12 +78,12 @@ export const OrderSchema = z.object({
 });
 
 const transitions: Record<OrderStatus, OrderStatus[]> = {
-  created: ['in_progress', 'cancelled'],
-  in_progress: ['pr_opened', 'cancelled'],
-  pr_opened: ['review_passed', 'review_failed', 'cancelled'],
-  review_failed: ['pr_opened', 'cancelled'],
-  review_passed: ['settled', 'cancelled'],
-  settled: ['bookkept'],
+  created: ['in_progress', 'pr_opened', 'review_passed', 'review_failed', 'cancelled'],
+  in_progress: ['pr_opened', 'review_passed', 'review_failed', 'cancelled'],
+  pr_opened: ['review_passed', 'review_failed', 'settled', 'cancelled'],
+  review_failed: ['pr_opened', 'review_passed', 'cancelled'],
+  review_passed: ['settled', 'pr_opened', 'cancelled'],
+  settled: ['bookkept', 'review_passed'],
   bookkept: [],
   cancelled: [],
 };
