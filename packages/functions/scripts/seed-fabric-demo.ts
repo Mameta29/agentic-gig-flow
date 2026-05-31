@@ -47,7 +47,7 @@ async function main() {
         bookkeepingArtifacts: {
           journalEntry: {
             debit: { account: '外注費', amount },
-            credit: { account: '暗号資産（JPYC）', amount },
+            credit: { account: '電子決済手段（JPYC）', amount },
             description: `demo / ${ym}-${j}`,
             dateLocal: createdAt.slice(0, 10),
           },

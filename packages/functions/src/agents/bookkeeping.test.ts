@@ -35,7 +35,7 @@ describe('runBookkeeping', () => {
       content: JSON.stringify({
         journalEntry: {
           debit: { account: '外注費', amount: 50000 },
-          credit: { account: '暗号資産（JPYC）', amount: 50000 },
+          credit: { account: '電子決済手段（JPYC）', amount: 50000 },
           description: 'sato / feature / order:order-1',
           dateLocal: '2026-05-15',
         },
