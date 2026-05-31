@@ -48,7 +48,7 @@ Contract / Review / Settlement / Bookkeeping。
    │   結果: 数秒で Sato のウォレットに円建てステーブルコインが着金
    ▼
 【記帳】Bookkeeping Agent (gpt-4o)  ← Settlement から自動連鎖
-   │   裏: 仕訳（借方 外注費 / 貸方 暗号資産）+ 源泉徴収判定 + 支払調書 を生成
+   │   裏: 仕訳（借方 外注費 / 貸方 電子決済手段（JPYC））+ 源泉徴収判定 + 支払調書 を生成
    │       → Cosmos に保存 + Teams に「支払完了」カードを proactive 送信
    ▼
 【可視化】

@@ -50,7 +50,7 @@
 - **MCPサーバの実装コード自体は残す**（消さない）が、提出物（図・記事・動画）では前面に出さない。Zenn §5 の MCP 章、動画 Scene6 の Claude Desktop 部分は削除 or MS完結に差し替え。
 
 ### 判断4: 経理担当者の入口 = Dashboard
-- 注文詳細ページ `/orders/[id]` に **仕訳（借方外注費/貸方暗号資産）と源泉徴収（有無・税率・根拠）が既に表示済み**（実装確認済み: `packages/dashboard/app/orders/[id]/page.tsx`）。
+- 注文詳細ページ `/orders/[id]` に **仕訳（借方 外注費 / 貸方 電子決済手段（JPYC））と源泉徴収（有無・税率・根拠）が既に表示済み**（実装確認済み: `packages/dashboard/app/orders/[id]/page.tsx`）。
 - **支払調書（paymentStatementMarkdown）だけデータはあるが画面未表示**。提出前に数行追加で表示する軽微改善が候補（同ファイル 行104の経理処理セクション内に追記）。任意だが、やると経理ビューが完全になる。
 
 ---
