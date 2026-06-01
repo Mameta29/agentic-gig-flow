@@ -14,6 +14,20 @@ export class AuthExpiredError extends Error {
   }
 }
 
+// Carries the raw Functions response so callers (route handlers, UI) can
+// surface the underlying error code (e.g. contract_failed: unknown_worker)
+// instead of collapsing everything into "failed: 502".
+export class CreateOrderError extends Error {
+  status: number;
+  bodyText: string;
+  constructor(status: number, bodyText: string) {
+    super(`create failed: ${status}`);
+    this.name = 'CreateOrderError';
+    this.status = status;
+    this.bodyText = bodyText;
+  }
+}
+
 async function authedFetch(
   path: string,
   init: RequestInit = {},
@@ -68,10 +82,8 @@ export async function createOrder(body: {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    // Surface the Functions error body (e.g. contract_failed: <reason>) so the
-    // dashboard can show *why* create failed.
     const detail = await res.text().catch(() => '');
-    throw new Error(`create failed: ${res.status} ${detail.slice(0, 300)}`);
+    throw new CreateOrderError(res.status, detail);
   }
   return res.json();
 }
