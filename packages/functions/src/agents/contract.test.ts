@@ -152,6 +152,49 @@ describe('runContract', () => {
     expect(stored?.amountJpyc).toBe(50000);
   });
 
+  it('rejects when rawDescription names a worker not in workers list', async () => {
+    const cosmos = seed();
+    const createIssue = vi.fn();
+    // The LLM tries to validate with a bogus login that doesn't match any
+    // worker (e.g. "後藤さん" → "goto" — there is no goto in seed()). The
+    // fuzzy matcher should also fail because rawDescription has no "sato"
+    // substring. unknown_worker must come back.
+    const llm = vi.fn(async (opts) => {
+      const tools = (opts as {
+        toolImpls: Record<string, (a: Record<string, unknown>) => Promise<unknown>>;
+      }).toolImpls;
+      const v = await tools.validateOrderRequest!({
+        workerGithubLogin: 'goto',
+        workerWallet: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        amountJpyc: 30_000,
+        deadline: '2026-12-31',
+        repository: 'demo/workspace',
+        acceptanceCriteria: ['CI 通過', 'テスト追加'],
+        description: 'feature x',
+      });
+      return {
+        content: JSON.stringify({ error: (v as { error: string }).error }),
+        totalTokens: 1,
+        promptTokens: 1,
+        completionTokens: 0,
+        toolCallsMade: 1,
+      };
+    });
+
+    await expect(
+      runContract(
+        {
+          tenantId: TENANT,
+          requesterId: 'pm-1',
+          rawDescription: '後藤 さんに feature x を 3万円で 2週間後',
+          today: '2026-05-15',
+        },
+        { cosmos, createIssue, runWithTools: llm as never },
+      ),
+    ).rejects.toThrow(/unknown_worker/);
+    expect(createIssue).not.toHaveBeenCalled();
+  });
+
   it('errors on over-budget request', async () => {
     const cosmos = seed();
     const createIssue = vi.fn();
