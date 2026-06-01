@@ -4,32 +4,36 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { OrderErrorView } from '@/lib/order-errors';
 
+// Live values for the judge demo tenant (docs/DEPLOY-PROGRESS.md §end-to-end).
+// Worker = ei-chan-bot, repo = Mameta29/gigflow-demo-workspace. If a future
+// tenant is added we will need to fetch these from Functions instead.
+const KNOWN_WORKERS = [
+  {
+    displayName: 'ei-chan-bot',
+    githubLogin: 'ei-chan-bot',
+    note: 'デモ用フリーランサー',
+  },
+];
+const KNOWN_REPOSITORIES = ['Mameta29/gigflow-demo-workspace'];
+
 // Sample prompts that include every field Contract Agent needs to succeed:
 // worker name, amount (JPYC), deadline (relative), description, repository.
-// Judges can click these instead of having to guess the right phrasing.
 const SAMPLES: { label: string; text: string }[] = [
   {
     label: 'ログイン機能 / 5万 JPYC / 2週間後',
     text:
-      'Sato さんに ログイン機能の実装 を 50,000 JPYC で 2週間後 までにお願いします。リポジトリは demo/workspace。受け入れ基準: メール+パスワードでサインインできる、エラー時にトーストが出る。',
+      'ei-chan-bot さんに ログイン機能の実装 を 50,000 JPYC で 2週間後 までにお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: メール+パスワードでサインインできる、エラー時にトーストが出る。',
   },
   {
     label: 'バグ修正 / 3万 JPYC / 1週間後',
     text:
-      'Sato さんに 注文一覧画面のページングが効かない不具合の修正 を 30,000 JPYC で 1週間後 までお願いします。リポジトリは demo/workspace。受け入れ基準: 100件以上のデータでも次ページに進める。',
+      'ei-chan-bot さんに 注文一覧画面のページングが効かない不具合の修正 を 30,000 JPYC で 1週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 100件以上のデータでも次ページに進める。',
   },
   {
     label: 'リファクタ / 8万 JPYC / 3週間後',
     text:
-      'Sato さんに 認証ミドルウェアのリファクタリング を 80,000 JPYC で 3週間後 までお願いします。リポジトリは demo/workspace。受け入れ基準: 既存テストがすべて通る、新規ユニットテスト追加。',
+      'ei-chan-bot さんに 認証ミドルウェアのリファクタリング を 80,000 JPYC で 3週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 既存テストがすべて通る、新規ユニットテスト追加。',
   },
-];
-
-// Seed-known workers (packages/functions/scripts/seed-cosmos.ts). Showing this
-// inline removes the "後藤さんに頼みたい → unknown_worker で 502" failure mode
-// during judge demos.
-const KNOWN_WORKERS = [
-  { displayName: 'Sato Taro', githubLogin: 'sato-taro', note: 'デモ用フリーランサー' },
 ];
 
 export default function NewOrderPage() {
@@ -103,6 +107,23 @@ export default function NewOrderPage() {
         </div>
       </section>
 
+      <section className="mb-4 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+        <div className="mb-2 text-xs font-semibold text-neutral-700">
+          使えるリポジトリ
+        </div>
+        <ul className="space-y-1 text-sm">
+          {KNOWN_REPOSITORIES.map((r) => (
+            <li key={r}>
+              <code className="rounded bg-white px-1 py-0.5 text-xs">{r}</code>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 text-xs text-neutral-500">
+          このテナントで許可されているリポジトリです。他のリポジトリ名を書くと
+          「リポジトリが登録されていません」エラーになります。
+        </div>
+      </section>
+
       <section className="mb-3">
         <div className="mb-2 text-xs font-semibold text-neutral-700">
           サンプル (クリックで入力欄に挿入)
@@ -125,7 +146,7 @@ export default function NewOrderPage() {
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={6}
-        placeholder="例: Sato さんに ログイン機能 を 50,000 JPYC で 2週間後 までお願い。リポジトリは demo/workspace。"
+        placeholder="例: Sato さんに ログイン機能 を 50,000 JPYC で 2週間後 までお願い。リポジトリは Mameta29/gigflow-demo-workspace。"
         className="w-full resize-none rounded-md border border-neutral-300 p-3 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
       />
 
@@ -151,6 +172,19 @@ export default function NewOrderPage() {
                   className="ml-1 rounded bg-white px-1 py-0.5 text-xs text-red-800"
                 >
                   {w.displayName}
+                </code>
+              ))}
+            </div>
+          )}
+          {err.code === 'unknown_repository' && (
+            <div className="mt-2 text-red-700">
+              使えるリポジトリ:{' '}
+              {KNOWN_REPOSITORIES.map((r) => (
+                <code
+                  key={r}
+                  className="ml-1 rounded bg-white px-1 py-0.5 text-xs text-red-800"
+                >
+                  {r}
                 </code>
               ))}
             </div>

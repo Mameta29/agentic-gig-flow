@@ -5,6 +5,7 @@
 
 export type OrderErrorCode =
   | 'unknown_worker'
+  | 'unknown_repository'
   | 'over_spending_limit'
   | 'deadline_in_past'
   | 'missing_info'
@@ -63,6 +64,21 @@ export function classifyOrderError(
     };
   }
 
+  if (
+    lower.includes('リポジトリ') ||
+    lower.includes('repositories') ||
+    lower.includes('repository') && lower.includes('存在しません')
+  ) {
+    return {
+      code: 'unknown_repository',
+      title: 'リポジトリが登録されていません',
+      detail:
+        '依頼文に書かれたリポジトリがこのテナントの許可リストにありません。',
+      hint:
+        '下に表示されている「使えるリポジトリ」をそのままコピーして使ってください。',
+      raw,
+    };
+  }
   if (lower.includes('unknown_worker')) {
     return {
       code: 'unknown_worker',
