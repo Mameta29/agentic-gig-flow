@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { OrderErrorView } from '@/lib/order-errors';
 
-// Live values for the judge demo tenant (docs/DEPLOY-PROGRESS.md §end-to-end).
-// Worker = ei-chan-bot, repo = Mameta29/gigflow-demo-workspace. If a future
-// tenant is added we will need to fetch these from Functions instead.
+// Live values verified against production Cosmos (scripts/inspect-tenant.ts).
+// displayName is what shows in the UI / what the PM types in natural language;
+// githubLogin is what Contract Agent puts on the Issue assignee.
 const KNOWN_WORKERS = [
   {
-    displayName: 'ei-chan-bot',
+    displayName: 'Sato Taro',
     githubLogin: 'ei-chan-bot',
-    note: 'デモ用フリーランサー',
+    note: 'デモ用フリーランサー (GitHub: ei-chan-bot)',
   },
 ];
 const KNOWN_REPOSITORIES = ['Mameta29/gigflow-demo-workspace'];
@@ -22,17 +22,17 @@ const SAMPLES: { label: string; text: string }[] = [
   {
     label: 'ログイン機能 / 5万 JPYC / 2週間後',
     text:
-      'ei-chan-bot さんに ログイン機能の実装 を 50,000 JPYC で 2週間後 までにお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: メール+パスワードでサインインできる、エラー時にトーストが出る。',
+      'Sato さんに ログイン機能の実装 を 50,000 JPYC で 2週間後 までにお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: メール+パスワードでサインインできる、エラー時にトーストが出る。',
   },
   {
     label: 'バグ修正 / 3万 JPYC / 1週間後',
     text:
-      'ei-chan-bot さんに 注文一覧画面のページングが効かない不具合の修正 を 30,000 JPYC で 1週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 100件以上のデータでも次ページに進める。',
+      'Sato さんに 注文一覧画面のページングが効かない不具合の修正 を 30,000 JPYC で 1週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 100件以上のデータでも次ページに進める。',
   },
   {
     label: 'リファクタ / 8万 JPYC / 3週間後',
     text:
-      'ei-chan-bot さんに 認証ミドルウェアのリファクタリング を 80,000 JPYC で 3週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 既存テストがすべて通る、新規ユニットテスト追加。',
+      'Sato さんに 認証ミドルウェアのリファクタリング を 80,000 JPYC で 3週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 既存テストがすべて通る、新規ユニットテスト追加。',
   },
 ];
 
