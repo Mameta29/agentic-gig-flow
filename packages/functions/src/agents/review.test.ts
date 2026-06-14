@@ -41,7 +41,8 @@ describe('runReview', () => {
       return { merged: true, sha: 'shaaaa' };
     });
     const fetchDiff = vi.fn(async () => ({
-      diff: '+++ a.ts\n+ x',
+      // Includes a test file so the deterministic "tests added" guard passes.
+      diff: '+++ b/a.ts\n+ x\n+++ b/a.test.ts\n+ test',
       truncated: false,
     }));
     const runWithToolsFake = vi.fn(async (opts: never) => {
@@ -131,7 +132,7 @@ describe('runReview', () => {
       },
       {
         cosmos,
-        fetchDiff: vi.fn(async () => ({ diff: '', truncated: false })),
+        fetchDiff: vi.fn(async () => ({ diff: '+++ b/src/x.ts\n+ x\n+++ b/src/x.test.ts\n+ test', truncated: false })),
         submitReview,
         mergePr,
         runWithTools: runWithToolsFake as never,
@@ -177,7 +178,7 @@ describe('runReview', () => {
       },
       {
         cosmos,
-        fetchDiff: vi.fn(async () => ({ diff: '', truncated: false })),
+        fetchDiff: vi.fn(async () => ({ diff: '+++ b/src/x.ts\n+ x\n+++ b/src/x.test.ts\n+ test', truncated: false })),
         submitReview,
         mergePr,
         runWithTools: runWithToolsFake as never,
@@ -230,7 +231,7 @@ describe('runReview', () => {
       },
       {
         cosmos,
-        fetchDiff: vi.fn(async () => ({ diff: '+++ x', truncated: false })),
+        fetchDiff: vi.fn(async () => ({ diff: '+++ b/src/x.ts\n+ x\n+++ b/src/x.test.ts\n+ test', truncated: false })),
         submitReview,
         mergePr,
         runWithTools: runWithToolsFake as never,
@@ -290,7 +291,7 @@ describe('runReview', () => {
       },
       {
         cosmos,
-        fetchDiff: vi.fn(async () => ({ diff: '', truncated: false })),
+        fetchDiff: vi.fn(async () => ({ diff: '+++ b/src/x.ts\n+ x\n+++ b/src/x.test.ts\n+ test', truncated: false })),
         submitReview,
         mergePr,
         runWithTools: runWithToolsFake as never,
@@ -325,12 +326,126 @@ describe('runReview', () => {
         },
         {
           cosmos,
-          fetchDiff: vi.fn(async () => ({ diff: '', truncated: false })),
+          fetchDiff: vi.fn(async () => ({ diff: '+++ b/src/x.ts\n+ x\n+++ b/src/x.test.ts\n+ test', truncated: false })),
           submitReview: vi.fn(),
           mergePr: vi.fn(),
           runWithTools: runWithToolsFake as never,
         },
       ),
     ).rejects.toThrow(/review_output_invalid/);
+  });
+
+  it('falls back to a plain PR comment when submitReview fails (own-PR 422)', async () => {
+    const cosmos = createFakeCosmos(TENANT);
+    await cosmos.upsertOrder(buildOrder());
+
+    // submitReview rejects like GitHub does for a review on your own PR.
+    const submitReview = vi.fn(async () => {
+      throw new Error('Can not request changes on your own pull request');
+    });
+    const createPrComment = vi.fn(async () => undefined);
+    const mergePr = vi.fn(async () => ({ merged: false, sha: '' }));
+
+    const runWithToolsFake = vi.fn(async () => ({
+      content: JSON.stringify({
+        verdict: 'reject',
+        qualityScore: 50,
+        criteriaResults: [
+          { criterion: 'CI passes', met: false, evidence: 'pending' },
+        ],
+        reviewComment: '## ❌ needs changes',
+        autoMerge: false,
+      }),
+      totalTokens: 80,
+      promptTokens: 60,
+      completionTokens: 20,
+      toolCallsMade: 0,
+    }));
+
+    const out = await runReview(
+      {
+        tenantId: TENANT,
+        order: buildOrder(),
+        repository: 'demo/workspace',
+        prNumber: 9,
+        ciStatus: 'success',
+      },
+      {
+        cosmos,
+        fetchDiff: vi.fn(async () => ({
+          diff: '+++ b/src/x.ts\n+ x\n+++ b/src/x.test.ts\n+ test',
+          truncated: false,
+        })),
+        submitReview,
+        createPrComment,
+        mergePr,
+        runWithTools: runWithToolsFake as never,
+      },
+    );
+
+    expect(out.verdict).toBe('reject');
+    expect(submitReview).toHaveBeenCalledOnce(); // attempted formal review
+    expect(createPrComment).toHaveBeenCalledOnce(); // fell back to a comment
+    const arg = (createPrComment.mock.calls[0] as unknown[])[0] as {
+      prNumber: number;
+      body: string;
+    };
+    expect(arg.prNumber).toBe(9);
+    expect(arg.body).toContain('needs changes');
+  });
+
+  it('deterministic guard overrides LLM false-approve when no test file is in the diff', async () => {
+    const cosmos = createFakeCosmos(TENANT);
+    await cosmos.upsertOrder(buildOrder());
+
+    const submitReview = vi.fn(async () => undefined);
+    const mergePr = vi.fn(async () => ({ merged: true, sha: 'x' }));
+
+    // LLM approves (incl. marking "tests added" met) — but the diff has NO test
+    // file. The code-side guard must force this to reject and block the merge.
+    const runWithToolsFake = vi.fn(async () => ({
+      content: JSON.stringify({
+        verdict: 'approve',
+        qualityScore: 92,
+        criteriaResults: [
+          { criterion: 'CI passes', met: true, evidence: 'success' },
+          { criterion: 'tests added', met: true, evidence: '今回は許容範囲と判断' },
+        ],
+        reviewComment: '## ✅ Review passed',
+        autoMerge: true,
+      }),
+      totalTokens: 90,
+      promptTokens: 70,
+      completionTokens: 20,
+      toolCallsMade: 0,
+    }));
+
+    const out = await runReview(
+      {
+        tenantId: TENANT,
+        order: buildOrder(),
+        repository: 'demo/workspace',
+        prNumber: 11,
+        ciStatus: 'success',
+      },
+      {
+        cosmos,
+        // Code change only — NO test file added.
+        fetchDiff: vi.fn(async () => ({
+          diff: '+++ b/src/x.ts\n+ x',
+          truncated: false,
+        })),
+        submitReview,
+        mergePr,
+        runWithTools: runWithToolsFake as never,
+      },
+    );
+
+    // The guard turns the false-approve into a reject; money must not move.
+    expect(out.verdict).toBe('reject');
+    expect(out.autoMerge).toBe(false);
+    expect(mergePr).not.toHaveBeenCalled();
+    const updated = await cosmos.getOrder('order-1');
+    expect(updated?.status).toBe('review_failed');
   });
 });
