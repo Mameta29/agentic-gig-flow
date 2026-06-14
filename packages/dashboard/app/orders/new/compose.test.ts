@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { composeOrderText } from './compose';
+import { composeOrderText, validateOrderForm } from './compose';
+
+describe('validateOrderForm', () => {
+  const ok = { amountJpyc: '50000', description: 'ログイン機能' };
+
+  it('accepts a valid amount and description', () => {
+    expect(validateOrderForm(ok).valid).toBe(true);
+  });
+
+  it('rejects an empty description', () => {
+    const r = validateOrderForm({ ...ok, description: '   ' });
+    expect(r.valid).toBe(false);
+    expect(r.descriptionError).toBeTruthy();
+  });
+
+  it('rejects a zero, negative or non-integer amount', () => {
+    expect(validateOrderForm({ ...ok, amountJpyc: '0' }).valid).toBe(false);
+    expect(validateOrderForm({ ...ok, amountJpyc: '-5' }).valid).toBe(false);
+    expect(validateOrderForm({ ...ok, amountJpyc: '1.5' }).valid).toBe(false);
+    expect(validateOrderForm({ ...ok, amountJpyc: '' }).valid).toBe(false);
+  });
+
+});
 
 describe('composeOrderText', () => {
   it('composes a full natural-language order from structured fields', () => {
