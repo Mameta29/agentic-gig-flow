@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { OrderErrorView } from '@/lib/order-errors';
-import { composeOrderText } from './compose';
+import { composeOrderText, validateOrderForm } from './compose';
 
 // Live values verified against production Cosmos (scripts/inspect-tenant.ts /
 // scripts/seed-dogfood.ts). displayName is what shows in the UI / what the PM
@@ -101,6 +101,13 @@ export default function NewOrderPage() {
   );
 
   const text = manualText ?? composed;
+
+  // Inline validation: amount must be a positive integer ≤ limit, description
+  // required. Drives both the inline warnings and the submit-button gate.
+  const validation = useMemo(
+    () => validateOrderForm({ amountJpyc, description }),
+    [amountJpyc, description],
+  );
 
   // Reset back to form-driven composition.
   function useFormText() {
@@ -214,13 +221,23 @@ export default function NewOrderPage() {
             inputMode="numeric"
             min={1}
             aria-label="金額 (JPYC)"
+            aria-invalid={validation.amountError ? true : undefined}
             value={amountJpyc}
             onChange={(e) => {
               setAmountJpyc(e.target.value);
               useFormText();
             }}
-            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+            className={`w-full rounded-md border bg-white p-2 text-sm focus:outline-none ${
+              validation.amountError
+                ? 'border-red-400 focus:border-red-500'
+                : 'border-neutral-300 focus:border-[var(--gigflow-blue)]'
+            }`}
           />
+          {validation.amountError && (
+            <span className="mt-1 block text-xs text-red-600">
+              {validation.amountError}
+            </span>
+          )}
         </label>
 
         <label className="text-sm">
@@ -252,14 +269,24 @@ export default function NewOrderPage() {
           </span>
           <input
             aria-label="業務内容"
+            aria-invalid={validation.descriptionError ? true : undefined}
             value={description}
             onChange={(e) => {
               setDescription(e.target.value);
               useFormText();
             }}
             placeholder="例: ログイン機能の実装"
-            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+            className={`w-full rounded-md border bg-white p-2 text-sm focus:outline-none ${
+              validation.descriptionError
+                ? 'border-red-400 focus:border-red-500'
+                : 'border-neutral-300 focus:border-[var(--gigflow-blue)]'
+            }`}
           />
+          {validation.descriptionError && (
+            <span className="mt-1 block text-xs text-red-600">
+              {validation.descriptionError}
+            </span>
+          )}
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs font-semibold text-neutral-700">
@@ -294,6 +321,39 @@ export default function NewOrderPage() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Preview card: structured confirmation of what will be ordered. */}
+      <section className="mb-3 rounded-md border border-[var(--gigflow-blue)]/30 bg-blue-50/40 p-4">
+        <div className="mb-2 text-xs font-semibold text-neutral-700">
+          発注プレビュー
+        </div>
+        <dl className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+          <dt className="text-neutral-500">受注者</dt>
+          <dd className="font-medium">
+            {selectedWorker.displayName}{' '}
+            <span className="text-neutral-400">@{selectedWorker.githubLogin}</span>
+          </dd>
+          <dt className="text-neutral-500">リポジトリ</dt>
+          <dd className="font-mono text-xs">{repository}</dd>
+          <dt className="text-neutral-500">金額</dt>
+          <dd className="font-semibold tabular-nums">
+            {validation.amountError ? (
+              <span className="text-red-600">— </span>
+            ) : (
+              `${Number(amountJpyc).toLocaleString('en-US')} `
+            )}
+            <span className="text-xs font-normal text-neutral-400">JPYC</span>
+          </dd>
+          <dt className="text-neutral-500">期日</dt>
+          <dd>{deadline || <span className="text-neutral-400">未設定</span>}</dd>
+          <dt className="text-neutral-500">業務内容</dt>
+          <dd>
+            {description.trim() || (
+              <span className="text-neutral-400">未入力</span>
+            )}
+          </dd>
+        </dl>
       </section>
 
       <label className="text-sm">
@@ -385,7 +445,7 @@ export default function NewOrderPage() {
 
       <div className="mt-4 flex justify-end">
         <button
-          disabled={!text || submitting}
+          disabled={!text || submitting || !validation.valid}
           onClick={submit}
           className="rounded bg-[var(--gigflow-pink)] px-5 py-2 text-white font-medium disabled:bg-neutral-300"
         >

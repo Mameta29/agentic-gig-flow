@@ -1,5 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { composeOrderText } from './compose';
+import {
+  composeOrderText,
+  validateOrderForm,
+  MAX_AMOUNT_JPYC,
+} from './compose';
+
+describe('validateOrderForm', () => {
+  const ok = { amountJpyc: '50000', description: 'ログイン機能' };
+
+  it('accepts a valid amount and description', () => {
+    expect(validateOrderForm(ok).valid).toBe(true);
+  });
+
+  it('rejects an empty description', () => {
+    const r = validateOrderForm({ ...ok, description: '   ' });
+    expect(r.valid).toBe(false);
+    expect(r.descriptionError).toBeTruthy();
+  });
+
+  it('rejects a zero, negative or non-integer amount', () => {
+    expect(validateOrderForm({ ...ok, amountJpyc: '0' }).valid).toBe(false);
+    expect(validateOrderForm({ ...ok, amountJpyc: '-5' }).valid).toBe(false);
+    expect(validateOrderForm({ ...ok, amountJpyc: '1.5' }).valid).toBe(false);
+    expect(validateOrderForm({ ...ok, amountJpyc: '' }).valid).toBe(false);
+  });
+
+  it('rejects an amount over the per-order limit', () => {
+    const r = validateOrderForm({
+      ...ok,
+      amountJpyc: String(MAX_AMOUNT_JPYC + 1),
+    });
+    expect(r.valid).toBe(false);
+    expect(r.amountError).toContain('上限');
+  });
+
+  it('accepts an amount exactly at the limit', () => {
+    expect(
+      validateOrderForm({ ...ok, amountJpyc: String(MAX_AMOUNT_JPYC) }).valid,
+    ).toBe(true);
+  });
+});
 
 describe('composeOrderText', () => {
   it('composes a full natural-language order from structured fields', () => {
