@@ -23,7 +23,7 @@ az CLI のコピペで完結する手順。所要 60〜90分 (Entra App Registra
 ```bash
 # 自分の値に書き換え
 export RG=rg-gigflow-prod
-export LOCATION=japaneast              # OpenAI が gpt-4o 提供しているリージョン
+export LOCATION=japaneast              # gpt-5.1 を提供しているリージョンを確認（無ければ eastus2 等）
 export PREFIX=gigflow                  # リソース名のプレフィックス
 export SUFFIX=$(openssl rand -hex 3)   # ランダム3バイト = グローバル一意性確保
 
@@ -236,16 +236,23 @@ az cognitiveservices account create \
   --sku S0 \
   --custom-domain $AOAI_NAME
 
-# gpt-4o デプロイ
+# gpt-5.1 デプロイ（gpt-4o の Microsoft 公式推奨置換。モデル非依存設計なので gpt-4o に戻すなら
+#  --deployment-name/--model-name を gpt-4o・--model-version 2024-11-20 にするだけ）
+# ⚠️ --model-version は Foundry のモデルカタログで現行 GA 版を確認してから指定すること
+#    (`az cognitiveservices model list -l $LOCATION` で gpt-5.1 の version を確認)
 az cognitiveservices account deployment create \
   --resource-group $RG \
   --name $AOAI_NAME \
-  --deployment-name gpt-4o \
-  --model-name gpt-4o \
-  --model-version 2024-11-20 \
+  --deployment-name gpt-5.1 \
+  --model-name gpt-5.1 \
+  --model-version <カタログで確認した現行版> \
   --model-format OpenAI \
   --sku-name "GlobalStandard" \
   --sku-capacity 50
+
+# ⚠️ デプロイ後の必須疎通確認: gpt-5.1 は Chat Completions ではなく Responses API が
+#    既定になり 404 になる報告がある。デプロイ直後に実コールで Chat Completions が
+#    通ることを1回確認する（通らなければ AZURE_OPENAI_DEPLOYMENT=gpt-4o に即戻せる）。
 
 # Function App から Managed Identity でアクセスする権限
 AOAI_RESOURCE_ID=$(az cognitiveservices account show --name $AOAI_NAME --resource-group $RG --query id -o tsv)
@@ -267,8 +274,8 @@ az functionapp config appsettings set \
   --resource-group $RG \
   --settings \
     AZURE_OPENAI_ENDPOINT="$AOAI_ENDPOINT" \
-    AZURE_OPENAI_DEPLOYMENT="gpt-4o" \
-    AZURE_OPENAI_API_VERSION="2024-10-21" \
+    AZURE_OPENAI_DEPLOYMENT="gpt-5.1" \
+    AZURE_OPENAI_API_VERSION="2025-04-01-preview" \
     COSMOS_ENDPOINT="$COSMOS_ENDPOINT" \
     COSMOS_DATABASE="gigflow" \
     KEY_VAULT_NAME="$KV_NAME" \
@@ -381,8 +388,8 @@ echo "MCP URL: https://$MCP_URL/mcp"
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "FUNCTIONS_NODE_VERSION": "~20",
     "AZURE_OPENAI_ENDPOINT": "<上の AOAI_ENDPOINT>",
-    "AZURE_OPENAI_DEPLOYMENT": "gpt-4o",
-    "AZURE_OPENAI_API_VERSION": "2024-10-21",
+    "AZURE_OPENAI_DEPLOYMENT": "gpt-5.1",
+    "AZURE_OPENAI_API_VERSION": "2025-04-01-preview",
     "COSMOS_ENDPOINT": "<上の COSMOS_ENDPOINT>",
     "COSMOS_DATABASE": "gigflow",
     "KEY_VAULT_NAME": "<KV_NAME>",

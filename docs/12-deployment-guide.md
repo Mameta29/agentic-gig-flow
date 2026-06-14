@@ -165,11 +165,13 @@ az cognitiveservices account create \
   --name $AOAI_NAME --resource-group $RG --location $LOCATION \
   --kind OpenAI --sku S0 --custom-domain $AOAI_NAME
 
-# gpt-4o デプロイ (この時点で承認待ちになる場合あり)
+# gpt-5.1 デプロイ (この時点で承認待ちになる場合あり)。gpt-4o に戻すなら名前/version を gpt-4o・2024-11-20 に。
+# ⚠️ --model-version は Foundry のモデルカタログで現行 GA 版を確認してから指定。
+# ⚠️ デプロイ後、Chat Completions が通ることを実コールで1回確認 (gpt-5.1 が Responses API 既定で 404 になる報告あり)。
 az cognitiveservices account deployment create \
   --resource-group $RG --name $AOAI_NAME \
-  --deployment-name gpt-4o --model-name gpt-4o \
-  --model-version 2024-11-20 --model-format OpenAI \
+  --deployment-name gpt-5.1 --model-name gpt-5.1 \
+  --model-version <カタログで確認した現行版> --model-format OpenAI \
   --sku-name "GlobalStandard" --sku-capacity 50
 
 az role assignment create \
@@ -183,8 +185,8 @@ az functionapp config appsettings set \
   --name $FUNC_NAME --resource-group $RG \
   --settings \
     AZURE_OPENAI_ENDPOINT="$AOAI_ENDPOINT" \
-    AZURE_OPENAI_DEPLOYMENT="gpt-4o" \
-    AZURE_OPENAI_API_VERSION="2024-10-21" \
+    AZURE_OPENAI_DEPLOYMENT="gpt-5.1" \
+    AZURE_OPENAI_API_VERSION="2025-04-01-preview" \
     COSMOS_ENDPOINT="$COSMOS_ENDPOINT" \
     COSMOS_DATABASE="gigflow" \
     KEY_VAULT_NAME="$KV_NAME" \
@@ -938,7 +940,7 @@ curl https://$MCP_URL/healthz
   - Functions Consumption: 数百円
   - Container Apps (min 1): ~3,000円/月 × 2 = 6,000円
   - Cosmos Serverless: ~1,000円
-  - Azure OpenAI gpt-4o GlobalStandard: 使用分 (デモ程度なら数百円)
+  - Azure OpenAI gpt-5.1 GlobalStandard: 使用分 (デモ程度なら数百円。reasoning なので推論トークン分は gpt-4o より単価が上がる点に留意)
   - Fabric Trial: 無料
   - **合計 〜10,000円/月** ぐらいを覚悟
 
@@ -954,7 +956,7 @@ az group delete --name $RG --yes --no-wait
 ## 優先順位 (詰まったら)
 
 1. **今すぐ**: Step 2 をターミナルにコピペして Azure 構築開始 (90分)
-   - Azure OpenAI gpt-4o の **deployment 承認待ちが入る** 場合があるので、最初に `az cognitiveservices account deployment create` を流すのを優先
+   - Azure OpenAI の **deployment 承認待ちが入る** 場合があるので、最初に `az cognitiveservices account deployment create` を流すのを優先
 2. Step 3 Cosmos seed (5分) — Azure 構築直後に
 3. Step 4 JPYC 送金疎通 (30分) — JPYC 購入が初めてなら 1〜2 日かかる場合あり
 4. Step 7 Functions デプロイ

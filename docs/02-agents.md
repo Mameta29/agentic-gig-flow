@@ -1,6 +1,6 @@
 # 02. Agents
 
-4つの自律エージェント (Contract / Review / Settlement / Bookkeeping) の責務、System Prompt、Tools 定義。Settlement 以外は Azure OpenAI gpt-4o の **function calling** で実装。
+4つの自律エージェント (Contract / Review / Settlement / Bookkeeping) の責務、System Prompt、Tools 定義。Settlement 以外は Azure OpenAI（Foundry）の **function calling** で実装。モデルは非依存設計で現在 **gpt-5.1**（reasoning モデルは temperature を送らない分岐を `lib/openai.ts` に実装。`AZURE_OPENAI_DEPLOYMENT` で差替、gpt-4o にも戻せる）。
 
 > **エージェント呼び出し経路**
 > - Contract Agent ← Copilot Studio (主) または Dashboard (副)

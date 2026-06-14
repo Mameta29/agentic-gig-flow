@@ -10,7 +10,16 @@ import {
   mergePr as ghMergePr,
 } from '../lib/github.js';
 import { runWithTools, type RunWithToolsOpts } from '../lib/openai.js';
+import { env } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
+
+/**
+ * 実際に稼働しているデプロイ名から Reviewer ラベルを作る。モデルを差し替えても
+ * (gpt-4o → gpt-5.1 等) PR に投稿されるレビュー本文・プロンプトが実態とズレない。
+ */
+function reviewerLabel(): string {
+  return `Azure OpenAI ${env.openaiDeployment()} on Microsoft Foundry`;
+}
 
 const ReviewOutputSchema = z.object({
   verdict: z.enum(['approve', 'reject']),
@@ -45,7 +54,7 @@ export type ReviewDeps = {
 };
 
 const SYSTEM_PROMPT = `あなたは **Agentic Gig-Flow の Review Agent** です。
-Microsoft Foundry 上の Azure OpenAI (gpt-4o) として稼働し、受注者が提出した Pull Request を、契約時に定義された検収基準で厳格に評価します。**合格なら GitHub に APPROVE レビューを投稿してマージ**、**不合格なら REQUEST_CHANGES レビューで具体的な修正点を伝えます**。
+{{REVIEWER}} として稼働し、受注者が提出した Pull Request を、契約時に定義された検収基準で厳格に評価します。**合格なら GitHub に APPROVE レビューを投稿してマージ**、**不合格なら REQUEST_CHANGES レビューで具体的な修正点を伝えます**。
 
 ## 入力 JSON
 - pr.diff: PR の unified diff (50KB で truncated される場合あり)
@@ -102,7 +111,7 @@ JSON だけを返して終わってはいけない。必ず先にツール呼び
 ## ✅ Review passed by Agentic Gig-Flow
 
 **Quality score**: <n>/100
-**Reviewer**: Azure OpenAI gpt-4o on Microsoft Foundry
+**Reviewer**: {{REVIEWER}}
 **PR**: #<prNumber>
 
 ### 検収基準の判定
@@ -124,7 +133,7 @@ JSON だけを返して終わってはいけない。必ず先にツール呼び
 ## ❌ Review needs changes — Agentic Gig-Flow
 
 **Quality score**: <n>/100
-**Reviewer**: Azure OpenAI gpt-4o on Microsoft Foundry
+**Reviewer**: {{REVIEWER}}
 **PR**: #<prNumber>
 
 ### 検収基準の判定
@@ -221,7 +230,7 @@ export async function runReview(
   };
 
   const result = await runner({
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: SYSTEM_PROMPT.replaceAll('{{REVIEWER}}', reviewerLabel()),
     userMessage,
     tools,
     toolImpls,
@@ -335,5 +344,5 @@ function buildFallbackComment(
     parsed.verdict === 'approve'
       ? `\n---\nこのPRをマージすると、**${input.order.amountJpyc.toLocaleString()} JPYC** が **@${input.order.workerGithubLogin}** に Polygon 経由で自動送金されます。`
       : '\n修正後に再 push してください。CI と本 Review Agent が再走します。';
-  return `${header}\n\n**Quality score**: ${parsed.qualityScore}/100\n**Reviewer**: Azure OpenAI gpt-4o on Microsoft Foundry\n**PR**: #${input.prNumber}\n\n### 検収基準の判定\n\n| # | 基準 | 結果 | 証拠 |\n|---|---|---|---|\n${rows}\n${footer}`;
+  return `${header}\n\n**Quality score**: ${parsed.qualityScore}/100\n**Reviewer**: ${reviewerLabel()}\n**PR**: #${input.prNumber}\n\n### 検収基準の判定\n\n| # | 基準 | 結果 | 証拠 |\n|---|---|---|---|\n${rows}\n${footer}`;
 }

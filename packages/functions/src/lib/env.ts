@@ -18,9 +18,11 @@ export const env = {
   keyVaultName: () => required('KEY_VAULT_NAME'),
   openaiEndpoint: () => required('AZURE_OPENAI_ENDPOINT'),
   openaiDeployment: () =>
-    process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+    process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.1',
+  // GPT-5 系 (reasoning) は新しい API version を要求する。gpt-4o にフォールバック
+  // するときは AZURE_OPENAI_API_VERSION=2024-10-21 を明示すれば従来通り動く。
   openaiApiVersion: () =>
-    process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
+    process.env.AZURE_OPENAI_API_VERSION || '2025-04-01-preview',
   polygonRpc: () => process.env.POLYGON_RPC || 'https://polygon-rpc.com',
   // 137 = Polygon mainnet, 80002 = Polygon Amoy testnet. Defaults to mainnet.
   polygonChainId: () => Number(process.env.POLYGON_CHAIN_ID || '137'),

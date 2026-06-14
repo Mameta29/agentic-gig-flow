@@ -40,7 +40,7 @@ flowchart TB
     end
 
     subgraph Foundation[Foundation]
-      OpenAI[Azure OpenAI<br/>Foundry / gpt-4o]
+      OpenAI[Azure OpenAI<br/>Foundry / gpt-5.1]
       Cosmos[(Cosmos DB)]
       KV[Key Vault]
       AppI[Application Insights]
@@ -178,7 +178,7 @@ Agent は**「特定のSystem Prompt + Tools を持つ Azure OpenAI コール + 
 - Copilot Studio から Data Agent を呼ぶ経路あり
 
 ### 2.7 Foundation Services
-- **Azure OpenAI (Foundry)**: gpt-4o for tool-calling、JSONモード
+- **Azure OpenAI (Foundry)**: tool-calling、JSONモード。モデル非依存設計で現在 gpt-5.1（gpt-4o へも `AZURE_OPENAI_DEPLOYMENT` 1箇所で差替可）
 - **Cosmos DB**: orders / events / accounts コレクション、partition by companyId
 - **Key Vault**: ウォレット秘密鍵、GitHub PAT、Webhook secret、Entra アプリ secret
 - **Application Insights**: 構造化ログ、Agent別トレース、Multi-agent 呼び出しの分散トレース
@@ -587,7 +587,7 @@ function preTransferChecks(order: Order, dailyTxCount: number) {
   - Key Vault 秘密鍵取得 (キャッシュ): 0ms (cold時 200ms)
   - viem `writeContract`: 200ms (Polygon RPC)
   - ブロック確定 (1 block): ~2秒
-- Review Agent 完了: **30秒以内** (gpt-4o の最大思考時間想定)
+- Review Agent 完了: **30秒以内** (LLM の最大思考時間想定。reasoning モデル=gpt-5.1 では推論トークン分が増えるため、本番は余裕を見て監視)
 - MCP tool レスポンス: **1秒以内** (シンプルなクエリ)
 - Copilot Studio Adaptive Card 表示: PR merge から **5秒以内**
 

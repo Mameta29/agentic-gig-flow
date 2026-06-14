@@ -34,3 +34,7 @@ obj/
 # misc
 .cache/
 .turbo/
+
+# 決勝ピッチの戦略資料・他チームの記事は公開リポに載せない
+docs/pitch/
+docs/決勝他4チーム/

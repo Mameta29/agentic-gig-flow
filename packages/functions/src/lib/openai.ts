@@ -21,6 +21,21 @@ function getClient(): AzureOpenAI {
   return client;
 }
 
+/**
+ * GPT-5 系 (reasoning) は temperature を受け付けず (既定値1のみ)、トークン上限は
+ * `max_completion_tokens` でのみ指定する。デプロイ名から判定し、エージェント層を
+ * モデル非依存に保つ。gpt-4o / gpt-4 系は従来どおり temperature を送る。
+ * 名前ベースの判定なので、想定外のデプロイ名 (例: 社内エイリアス) のときは
+ * AZURE_OPENAI_REASONING=true / false で明示上書きできる。
+ */
+export function isReasoningModel(deployment: string): boolean {
+  const override = process.env.AZURE_OPENAI_REASONING;
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  const d = deployment.toLowerCase();
+  return d.startsWith('gpt-5') || d.startsWith('o1') || d.startsWith('o3');
+}
+
 export type ToolDefinition = {
   type: 'function';
   function: {
@@ -62,6 +77,10 @@ export async function runWithTools(
   const c = opts.client ?? getClient();
   const deployment = opts.deployment ?? env.openaiDeployment();
   const maxTurns = opts.maxTurns ?? 6;
+  const reasoning = isReasoningModel(deployment);
+  // reasoning モデルは temperature 非対応。送ると 400 になるので付けない。
+  // 検収のブレ抑制は (gpt-4o では temperature 0.2 で担保していたが) reasoning 側は
+  // 根拠引用の強制と JSON 強制で代替する。
   const temperature = opts.temperature ?? 0.2;
 
   const userText =
@@ -95,7 +114,8 @@ export async function runWithTools(
       messages: messages as never,
       tools: opts.tools as never,
       tool_choice: opts.tools && opts.tools.length > 0 ? 'auto' : undefined,
-      temperature,
+      // reasoning モデルでは temperature を一切送らない (既定値1で動く)。
+      ...(reasoning ? {} : { temperature }),
       response_format:
         opts.responseFormat === 'json_object'
           ? { type: 'json_object' }

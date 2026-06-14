@@ -16,7 +16,7 @@
 | 山田（経理） | 経理処理を確認 | Claude Desktop（MCP接続） |
 | 大野（経営者） | 業務委託費を俯瞰 | Power BI |
 
-裏で動く「見えない主役」が **4つの AI エージェント**（Azure Functions 上、Azure OpenAI gpt-4o で駆動）:
+裏で動く「見えない主役」が **4つの AI エージェント**（Azure Functions 上、Azure OpenAI / Foundry で駆動。モデル非依存設計で現在 gpt-5.1）:
 Contract / Review / Settlement / Bookkeeping。
 
 ---
@@ -28,14 +28,14 @@ Contract / Review / Settlement / Bookkeeping。
    │   裏: Copilot Studio が発注内容を構造化 → Adaptive Card で確認 → CTOが承認
    │       → HTTP action で /api/copilot/webhook を叩く（Entraトークン付き）
    ▼
-【契約】Contract Agent (gpt-4o)
+【契約】Contract Agent (gpt-5.1)
    │   裏: 発注文を解析 → GitHub Issue 作成（本文の隠しコメントに orderId 埋込）
    │       → Cosmos の orders に status=created で保存
    ▼
 【開発】Sato（人間）が GitHub で実装 → PR を出す（本文に Closes #Issue）
    │   裏: CI（GitHub Actions）が走る
    ▼
-【検収】Review Agent (gpt-4o)  ← PR opened/synchronize の Webhook が起動
+【検収】Review Agent (gpt-5.1)  ← PR opened/synchronize の Webhook が起動
    │   裏: PR diff を取得 → waitForCheckRun で CI完了を待つ → 検収基準を1つずつ判定
    │       合格なら GitHub に approve コメント + squash merge（Octokit）
    │       Cosmos の status を review_passed に
@@ -47,7 +47,7 @@ Contract / Review / Settlement / Bookkeeping。
    │       → Cosmos status=settled + txHash 記録
    │   結果: 数秒で Sato のウォレットに円建てステーブルコインが着金
    ▼
-【記帳】Bookkeeping Agent (gpt-4o)  ← Settlement から自動連鎖
+【記帳】Bookkeeping Agent (gpt-5.1)  ← Settlement から自動連鎖
    │   裏: 仕訳（借方 外注費 / 貸方 電子決済手段（JPYC））+ 源泉徴収判定 + 支払調書 を生成
    │       → Cosmos に保存 + Teams に「支払完了」カードを proactive 送信
    ▼
@@ -66,7 +66,7 @@ Contract / Review / Settlement / Bookkeeping。
 |---|---|---|---|
 | 【契約】 | Contract Agent → GitHub Issue 作成 | ✅ コード実装・デプロイ済み | Agent経路デプロイ済み（検証では Issue 手動作成） |
 | 【開発】 | Worker が PR | ✅ **実証済み** | `ei-chan-bot` が PR #2/#4 作成 |
-| 【検収】 | Review Agent が gpt-4o で判定→自動merge | ✅ **実証済み** | PR #4 で qualityScore 90→approve→自動merge |
+| 【検収】 | Review Agent が判定→自動merge | ✅ **実証済み** | PR #4 で qualityScore 90→approve→自動merge（当時 gpt-4o で実証。現在は gpt-5.1） |
 | 【着金】 | Settlement → JPYC 送金（Amoy） | ✅ **実証済み** | tx `0x4cc464b7...` block 38852020、PR merge→着金 約5秒 |
 | 【記帳】 | Bookkeeping 仕訳生成 | ✅ **実証済み** | status `bookkept`、源泉徴収判定込み |
 | 【発注】 | Copilot Studio（Teams） | 🚧 **未完** | ライセンス404でブロック中（MS質問中）。Azure Bot/シークレットはCLI側完了 |
@@ -85,7 +85,7 @@ Contract / Review / Settlement / Bookkeeping。
 | Entra ID | 全員の認証。JWTの tid=会社ID でデータ分離（マルチテナント） | ✅ 実装済み |
 | Copilot Studio | 田中CTOの発注UI（Teams） | 🚧 未完 |
 | Azure Functions | 4エージェントの実行基盤 | ✅ 動く |
-| Azure OpenAI (gpt-4o) | Contract/Review/Bookkeeping の頭脳 | ✅ 動く |
+| Azure OpenAI (gpt-5.1) | Contract/Review/Bookkeeping の頭脳（モデル非依存・差替可） | ✅ 動く |
 | Cosmos DB | 全データ保管（orders/events/accounts/tenants） | ✅ 動く |
 | Key Vault | 秘密鍵・PAT・シークレットの金庫 | ✅ 動く |
 | Container Apps | Dashboard と MCPサーバのホスト | ✅ 動く |

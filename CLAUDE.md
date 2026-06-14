@@ -6,7 +6,7 @@
 
 ## 1. プロジェクト・ミッション
 
-**「副業3,000万人時代の月末経理を消す」** — 中小企業 × 業務委託フリーランサー間の発注〜検収〜報酬支払を、AIエージェントとJPYCで自律完結させる。**PRをマージした3秒後に、円建てで報酬が着金する**。
+**「フリーランス1,300万人時代の月末経理を消す」** — 中小企業 × 業務委託フリーランサー間の発注〜検収〜報酬支払を、AIエージェントとJPYCで自律完結させる。**PRをマージした3秒後に、円建てで報酬が着金する**。（注: 「1,300万人」はランサーズ フリーランス実態調査2024の広義フリーランス・経済規模20兆円。政府統計の副業者は305万人・本業フリーランス209万人。ピッチでは出典付き1,300万人で統一）
 
 ハッカソン: **Microsoft Agent Hackathon powered by Tokyo Electron Device** / 個人部門 / 〆切 2026-06-01
 
@@ -24,7 +24,7 @@
 ### 実行基盤・AI技術 (ハッカソン必須要件)
 1. **Azure 実行基盤を使う** — Azure Functions (本体) + Container Apps (Dashboard / MCP サーバ) を採用済み。
 2. **Microsoft AI 技術を二重で使う** —
-   - **Foundry (Azure OpenAI gpt-4o)**: Contract / Review / Bookkeeping Agent の関数呼び出し
+   - **Foundry (Azure OpenAI)**: Contract / Review / Bookkeeping Agent の関数呼び出し。モデルは**非依存設計**（`runWithTools()` の自前ループ・差し替えは環境変数1箇所）で、現在は **gpt-5.1**（gpt-4o の Microsoft 公式推奨置換）。gpt-4o へもフォールバック可。
    - **Copilot Studio**: PM の発注 UI の**主経路**。Teams Bot として実装し、Adaptive Card で発注確認・通知。**任意ではなく必須**。
 3. **Microsoft Entra ID で認証統一** — Dashboard / MCP サーバ / Functions すべて Entra ID トークンで保護。マルチテナント (companyId = tenantId) 構成。
 4. **Microsoft Fabric Data Agent を経営者向け BI として採用** — Cosmos DB を Fabric にミラーリングし、月次業務委託費レポートを Power BI で可視化。Data Agent に対して自然言語で問い合わせ可能。

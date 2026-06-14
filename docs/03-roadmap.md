@@ -167,7 +167,7 @@ graph TD
 **前提**: M0
 
 **やること**:
-- Azure OpenAI リソース + gpt-4o デプロイ (`docs/04-azure-setup.md` §7)
+- Azure OpenAI リソース + gpt-5.1 デプロイ (`docs/04-azure-setup.md` §7。gpt-4o も差替可)
 - `packages/functions/src/lib/openai.ts` — Managed Identity 認証
 - `runWithTools(systemPrompt, userMessage, tools, toolImpls, maxTurns)` ヘルパ
 - Application Insights にトークン使用量を記録

@@ -11,7 +11,7 @@
 | 要件 | 必須/推奨 | 現状 | 判定 |
 |---|---|---|---|
 | Azure 実行基盤 | **必須** | Azure Functions + Container Apps 稼働 | ✅ |
-| Microsoft AI 技術1つ以上 | **必須** | Azure OpenAI(Foundry) gpt-4o で4エージェント | ✅ |
+| Microsoft AI 技術1つ以上 | **必須** | Azure OpenAI(Foundry) gpt-5.1 で4エージェント（モデル非依存設計） | ✅ |
 | Cosmos DB | 推奨 | 稼働 | ✅ 申告で加点 |
 | GitHub | 推奨 | Webhook + Octokit | ✅ 申告で加点 |
 | Entra ID | 推奨 | 実装・稼働 | ✅ 申告で加点 |

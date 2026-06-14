@@ -60,7 +60,7 @@
 > サブエージェントで全コードを検証済み（2026-05-29）。提出物はこの範囲で書けば誇張にならない。
 
 ### 4つのエージェント（`packages/functions/src/agents/`）
-- **Contract / Review / Bookkeeping は gpt-4o（Azure OpenAI / Foundry）を `runWithTools()` で呼ぶ。**
+- **Contract / Review / Bookkeeping は Azure OpenAI / Foundry のモデルを `runWithTools()` で呼ぶ（モデル非依存。現在 gpt-5.1、gpt-4o へも差替可）。**
 - **Settlement だけ意図的にLLMを使わない＝決定的処理**（`settlement.ts`）。← 審査員に刺さる「分かってる」設計。Zenn §4.3 / §7.3 で厚く。
 - ガードレール実在（`settlement.ts:13-15`）: `MAX_AMOUNT_PER_TX=100,000 JPYC` / `MAX_TX_PER_DAY_PER_AGENT=10` / アドレス regex `^0x[a-fA-F0-9]{40}$` / idempotency（`order.txHash` 存在チェック, `settlement.ts:99-105`）。
 - Review Agent: 「推測でなく diff から確認できる事実のみ / evidence（ファイルパス+抜粋）必須」の根拠引用プロンプト（`review.ts:54-73`）。autoMerge は ci=success && 全criteria満たし && qualityScore>=70 のみ（`review.ts:58-62`）。
@@ -90,7 +90,7 @@
 - 4ユーザー: 田中CTO(PM) / Sato(Worker) / 山田(経理) / 大野(経営者)。
 - 4入口: Teams + Copilot Studio / GitHub / **Dashboard（経理）** / Power BI + Fabric Data Agent（経営）。
   - ※ 元設計の「経理=Claude Desktop+MCP」は **判断3でDashboardに変更**。
-- 中央: Azure Functions 上の 4 Agent（Contract/Review/Settlement/Bookkeeping、Foundry gpt-4o）。
+- 中央: Azure Functions 上の 4 Agent（Contract/Review/Settlement/Bookkeeping、Foundry gpt-5.1）。
 - 下部: Polygon × JPYC（決済）/ Cosmos DB（記録）/ Key Vault（鍵）。
 - **Entra ID は全入口を覆う層**として描く（認証統合）。Managed Identity の鍵レスをアイコンで。
 - 山場（PR merge → 3秒で着金）を赤線/強調で。
