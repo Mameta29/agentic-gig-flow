@@ -4,7 +4,7 @@
  * reasoning モデルで temperature 未送信でも JSON / tool-call が動くかを実機検証する。
  *
  * 実行:
- *   AZURE_OPENAI_ENDPOINT=https://aoai-gigflow-28fa80-eus2.openai.azure.com/ \
+ *   AZURE_OPENAI_ENDPOINT=https://<your-aoai>.openai.azure.com/ \
  *   AZURE_OPENAI_DEPLOYMENT=gpt-5.1 AZURE_OPENAI_API_VERSION=2025-04-01-preview \
  *   pnpm --filter @gigflow/functions exec tsx scripts/check-gpt5.ts
  */
