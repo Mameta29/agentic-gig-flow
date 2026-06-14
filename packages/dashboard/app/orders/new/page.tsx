@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { OrderErrorView } from '@/lib/order-errors';
+import { composeOrderText } from './compose';
 
-// Live values verified against production Cosmos (scripts/inspect-tenant.ts).
-// displayName is what shows in the UI / what the PM types in natural language;
-// githubLogin is what Contract Agent puts on the Issue assignee.
+// Live values verified against production Cosmos (scripts/inspect-tenant.ts /
+// scripts/seed-dogfood.ts). displayName is what shows in the UI / what the PM
+// types in natural language; githubLogin is what Contract Agent puts on the
+// Issue assignee.
 const KNOWN_WORKERS = [
   {
     displayName: 'Sato Taro',
@@ -18,11 +20,16 @@ const KNOWN_WORKERS = [
     githubLogin: 'Mameta29',
     note: 'dogfooding: 開発者本人 (seed-dogfood.ts で登録)',
   },
-];
+] as const;
+
 const KNOWN_REPOSITORIES = [
   'Mameta29/gigflow-demo-workspace',
   'Mameta29/agentic-gig-flow',
-];
+] as const;
+
+// Deadline presets keep the natural-language phrasing Contract Agent already
+// parses well ("2週間後" 等)。datalist なので自由入力もできる。
+const DEADLINE_PRESETS = ['1週間後', '2週間後', '3週間後', '1ヶ月後'] as const;
 
 // Sample prompts that include every field Contract Agent needs to succeed:
 // worker name, amount (JPYC), deadline (relative), description, repository.
@@ -51,9 +58,54 @@ const SAMPLES: { label: string; text: string }[] = [
 
 export default function NewOrderPage() {
   const router = useRouter();
-  const [text, setText] = useState('');
+
+  // Structured selections compose the natural-language text below, which stays
+  // the single source of truth sent to Contract Agent (NL entry preserved).
+  const [workerLogin, setWorkerLogin] = useState<string>(
+    KNOWN_WORKERS[0].githubLogin,
+  );
+  const [repository, setRepository] = useState<string>(KNOWN_REPOSITORIES[0]);
+  const [amountJpyc, setAmountJpyc] = useState<string>('50000');
+  const [deadline, setDeadline] = useState<string>(DEADLINE_PRESETS[1]);
+  const [description, setDescription] = useState<string>('');
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<string>('');
+
+  // When the PM edits the textarea (or picks a sample) we stop overwriting it
+  // from the form, so power users keep full natural-language control.
+  const [manualText, setManualText] = useState<string | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<OrderErrorView | null>(null);
+
+  const selectedWorker =
+    KNOWN_WORKERS.find((w) => w.githubLogin === workerLogin) ?? KNOWN_WORKERS[0];
+
+  const composed = useMemo(
+    () =>
+      composeOrderText({
+        workerDisplayName: selectedWorker.displayName,
+        repository,
+        amountJpyc,
+        deadline,
+        description,
+        acceptanceCriteria,
+      }),
+    [
+      selectedWorker.displayName,
+      repository,
+      amountJpyc,
+      deadline,
+      description,
+      acceptanceCriteria,
+    ],
+  );
+
+  const text = manualText ?? composed;
+
+  // Reset back to form-driven composition.
+  function useFormText() {
+    setManualText(null);
+  }
 
   async function submit() {
     setSubmitting(true);
@@ -96,57 +148,146 @@ export default function NewOrderPage() {
     <main className="mx-auto max-w-2xl">
       <h2 className="mb-1 text-xl font-semibold">新規発注</h2>
       <p className="mb-4 text-sm text-neutral-600">
-        自然言語で書くだけで Contract Agent が GitHub Issue を起こします。
+        受注者とリポジトリを選び、業務内容を書くだけ。Contract Agent が
+        GitHub Issue を起こします。
         <span className="text-neutral-500">
-          {' '}受注者名・金額・期日・業務内容を含めてください。
+          {' '}下の発注文はそのまま編集もできます (自然言語入力)。
         </span>
       </p>
 
-      <section className="mb-4 rounded-md border border-neutral-200 bg-neutral-50 p-3">
-        <div className="mb-2 text-xs font-semibold text-neutral-700">
-          登録済みの受注者
-        </div>
-        <ul className="space-y-1 text-sm">
-          {KNOWN_WORKERS.map((w) => (
-            <li key={w.githubLogin} className="flex items-center gap-2">
-              <span className="font-medium">{w.displayName}</span>
-              <span className="text-neutral-500">@{w.githubLogin}</span>
-              <span className="ml-auto text-xs text-neutral-500">{w.note}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-2 text-xs text-neutral-500">
-          ここに無い名前 (例: 後藤さん) を指定すると「受注者が登録されていません」エラーになります。
-        </div>
+      {/* Structured selectors remove the typo class of "登録されていません" errors. */}
+      <section className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">
+            受注者
+          </span>
+          <select
+            aria-label="受注者"
+            value={workerLogin}
+            onChange={(e) => {
+              setWorkerLogin(e.target.value);
+              useFormText();
+            }}
+            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+          >
+            {KNOWN_WORKERS.map((w) => (
+              <option key={w.githubLogin} value={w.githubLogin}>
+                {w.displayName} (@{w.githubLogin})
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-neutral-500">
+            {selectedWorker.note}
+          </span>
+        </label>
+
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">
+            リポジトリ
+          </span>
+          <select
+            aria-label="リポジトリ"
+            value={repository}
+            onChange={(e) => {
+              setRepository(e.target.value);
+              useFormText();
+            }}
+            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+          >
+            {KNOWN_REPOSITORIES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-neutral-500">
+            このテナントで許可されているリポジトリ
+          </span>
+        </label>
+
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">
+            金額 (JPYC)
+          </span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            aria-label="金額 (JPYC)"
+            value={amountJpyc}
+            onChange={(e) => {
+              setAmountJpyc(e.target.value);
+              useFormText();
+            }}
+            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+          />
+        </label>
+
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">
+            期日
+          </span>
+          <input
+            list="deadline-presets"
+            aria-label="期日"
+            value={deadline}
+            onChange={(e) => {
+              setDeadline(e.target.value);
+              useFormText();
+            }}
+            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+          />
+          <datalist id="deadline-presets">
+            {DEADLINE_PRESETS.map((d) => (
+              <option key={d} value={d} />
+            ))}
+          </datalist>
+        </label>
       </section>
 
-      <section className="mb-4 rounded-md border border-neutral-200 bg-neutral-50 p-3">
-        <div className="mb-2 text-xs font-semibold text-neutral-700">
-          使えるリポジトリ
-        </div>
-        <ul className="space-y-1 text-sm">
-          {KNOWN_REPOSITORIES.map((r) => (
-            <li key={r}>
-              <code className="rounded bg-white px-1 py-0.5 text-xs">{r}</code>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-2 text-xs text-neutral-500">
-          このテナントで許可されているリポジトリです。他のリポジトリ名を書くと
-          「リポジトリが登録されていません」エラーになります。
-        </div>
+      <section className="mb-3 grid grid-cols-1 gap-3">
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">
+            業務内容
+          </span>
+          <input
+            aria-label="業務内容"
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              useFormText();
+            }}
+            placeholder="例: ログイン機能の実装"
+            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold text-neutral-700">
+            受け入れ基準 (任意)
+          </span>
+          <input
+            aria-label="受け入れ基準"
+            value={acceptanceCriteria}
+            onChange={(e) => {
+              setAcceptanceCriteria(e.target.value);
+              useFormText();
+            }}
+            placeholder="例: 既存テストがすべて通る、CIが通過している"
+            className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+          />
+        </label>
       </section>
 
       <section className="mb-3">
         <div className="mb-2 text-xs font-semibold text-neutral-700">
-          サンプル (クリックで入力欄に挿入)
+          サンプル (クリックで発注文に挿入)
         </div>
         <div className="flex flex-wrap gap-2">
           {SAMPLES.map((s) => (
             <button
               key={s.label}
               type="button"
-              onClick={() => setText(s.text)}
+              onClick={() => setManualText(s.text)}
               className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 hover:border-[var(--gigflow-blue)] hover:text-[var(--gigflow-blue)]"
             >
               {s.label}
@@ -155,13 +296,27 @@ export default function NewOrderPage() {
         </div>
       </section>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={6}
-        placeholder="例: Sato さんに ログイン機能 を 50,000 JPYC で 2週間後 までお願い。リポジトリは Mameta29/gigflow-demo-workspace。"
-        className="w-full resize-none rounded-md border border-neutral-300 p-3 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
-      />
+      <label className="text-sm">
+        <span className="mb-1 flex items-center justify-between text-xs font-semibold text-neutral-700">
+          発注文 (送信される自然言語)
+          {manualText !== null && (
+            <button
+              type="button"
+              onClick={useFormText}
+              className="text-xs font-normal text-[var(--gigflow-blue)] hover:underline"
+            >
+              フォームの内容に戻す
+            </button>
+          )}
+        </span>
+        <textarea
+          value={text}
+          onChange={(e) => setManualText(e.target.value)}
+          rows={4}
+          placeholder="例: Sato さんに ログイン機能 を 50,000 JPYC で 2週間後 までお願い。リポジトリは Mameta29/gigflow-demo-workspace。"
+          className="w-full resize-none rounded-md border border-neutral-300 p-3 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+        />
+      </label>
 
       {err && (
         <div
@@ -205,10 +360,10 @@ export default function NewOrderPage() {
           {err.code === 'missing_info' && (
             <button
               type="button"
-              onClick={() => SAMPLES[0] && setText(SAMPLES[0].text)}
+              onClick={() => SAMPLES[0] && setManualText(SAMPLES[0].text)}
               className="mt-2 rounded border border-red-400 bg-white px-2 py-1 text-xs text-red-700 hover:bg-red-100"
             >
-              サンプル文を入力欄に挿入する
+              サンプル文を発注文に挿入する
             </button>
           )}
           {err.raw && (
