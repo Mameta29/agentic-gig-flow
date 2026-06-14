@@ -7,6 +7,7 @@ import {
 import {
   getPrDiff,
   submitReview as ghSubmitReview,
+  createPrComment as ghCreatePrComment,
   mergePr as ghMergePr,
 } from '../lib/github.js';
 import { runWithTools, type RunWithToolsOpts } from '../lib/openai.js';
@@ -49,6 +50,7 @@ export type ReviewDeps = {
   cosmos?: TenantScopedCosmos;
   fetchDiff?: typeof getPrDiff;
   submitReview?: typeof ghSubmitReview;
+  createPrComment?: typeof ghCreatePrComment;
   mergePr?: typeof ghMergePr;
   runWithTools?: typeof runWithTools;
 };
@@ -163,6 +165,7 @@ export async function runReview(
   const cosmos = deps.cosmos ?? createTenantScopedCosmos(input.tenantId);
   const fetchDiff = deps.fetchDiff ?? getPrDiff;
   const submitReview = deps.submitReview ?? ghSubmitReview;
+  const createPrComment = deps.createPrComment ?? ghCreatePrComment;
   const mergePr = deps.mergePr ?? ghMergePr;
   const runner = deps.runWithTools ?? runWithTools;
 
@@ -216,14 +219,44 @@ export async function runReview(
 
   let didSubmitReview = false;
 
-  const toolImpls = {
-    submitReviewComment: async (args: Record<string, unknown>) => {
+  // Post the review outcome to the PR. Tries a formal APPROVE/REQUEST_CHANGES
+  // review first; if that fails (own-PR 422, or token lacks pull_requests:write
+  // 403), falls back to a plain PR comment carrying the same body so the AI
+  // review is ALWAYS visible on the PR.
+  async function postReviewOutcome(
+    event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+    body: string,
+  ): Promise<void> {
+    try {
       await submitReview({
         repository: input.repository,
         prNumber: input.prNumber,
-        event: args.event as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
-        body: String(args.body ?? ''),
+        event,
+        body,
       });
+    } catch (err) {
+      logger.warn(
+        { err: String(err), orderId: input.order.id },
+        'submitReview failed; falling back to a plain PR comment',
+      );
+      const header =
+        event === 'APPROVE'
+          ? '✅ **Review passed** — Agentic Gig-Flow（formal review を投稿できないため comment として記録）'
+          : '❌ **Review needs changes** — Agentic Gig-Flow（formal review を投稿できないため comment として記録）';
+      await createPrComment({
+        repository: input.repository,
+        prNumber: input.prNumber,
+        body: `${header}\n\n${body}`,
+      });
+    }
+  }
+
+  const toolImpls = {
+    submitReviewComment: async (args: Record<string, unknown>) => {
+      await postReviewOutcome(
+        args.event as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+        String(args.body ?? ''),
+      );
       didSubmitReview = true;
       return { ok: true };
     },
@@ -262,17 +295,12 @@ export async function runReview(
       'model did not call submitReviewComment; posting from server',
     );
     try {
-      await submitReview({
-        repository: input.repository,
-        prNumber: input.prNumber,
-        event,
-        body,
-      });
+      await postReviewOutcome(event, body);
       didSubmitReview = true;
     } catch (err) {
       logger.error(
         { err: String(err), orderId: input.order.id },
-        'fallback submitReview failed',
+        'failed to post review outcome (review and comment both failed)',
       );
     }
   }
