@@ -7,6 +7,7 @@ import {
 import {
   getPrDiff,
   submitReview as ghSubmitReview,
+  createPrComment as ghCreatePrComment,
   mergePr as ghMergePr,
 } from '../lib/github.js';
 import { runWithTools, type RunWithToolsOpts } from '../lib/openai.js';
@@ -49,6 +50,7 @@ export type ReviewDeps = {
   cosmos?: TenantScopedCosmos;
   fetchDiff?: typeof getPrDiff;
   submitReview?: typeof ghSubmitReview;
+  createPrComment?: typeof ghCreatePrComment;
   mergePr?: typeof ghMergePr;
   runWithTools?: typeof runWithTools;
 };
@@ -163,6 +165,7 @@ export async function runReview(
   const cosmos = deps.cosmos ?? createTenantScopedCosmos(input.tenantId);
   const fetchDiff = deps.fetchDiff ?? getPrDiff;
   const submitReview = deps.submitReview ?? ghSubmitReview;
+  const createPrComment = deps.createPrComment ?? ghCreatePrComment;
   const mergePr = deps.mergePr ?? ghMergePr;
   const runner = deps.runWithTools ?? runWithTools;
 
@@ -214,19 +217,13 @@ export async function runReview(
     },
   ];
 
-  let didSubmitReview = false;
-
+  // The tool is kept so the model can structure its reasoning, but it has NO
+  // side effect: the PR review is posted ONCE, server-side, from the final
+  // parsed JSON. This removes the previous double-judgement bug where the
+  // tool-time verdict and the final-JSON verdict could disagree (an APPROVE
+  // comment landing on a PR the final JSON rejected).
   const toolImpls = {
-    submitReviewComment: async (args: Record<string, unknown>) => {
-      await submitReview({
-        repository: input.repository,
-        prNumber: input.prNumber,
-        event: args.event as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
-        body: String(args.body ?? ''),
-      });
-      didSubmitReview = true;
-      return { ok: true };
-    },
+    submitReviewComment: async () => ({ ok: true }),
   };
 
   const result = await runner({
@@ -249,18 +246,33 @@ export async function runReview(
     throw new Error('review_output_invalid');
   }
 
-  // Fallback: if the model returned JSON without ever invoking
-  // submitReviewComment, post the review from the server. We DO NOT skip this
-  // for reject either — every order must end with a visible PR review.
-  if (!didSubmitReview) {
+  // Deterministic guard (code, not LLM): if a test-related acceptance criterion
+  // exists but the diff adds no test file, force a reject. The model has been
+  // observed to "허용범위" away a missing test (false approve); money moves on
+  // this verdict, so the final say is code's, not the LLM's.
+  const overrideReason = enforceDeterministicGuards(parsed, input, diff);
+  if (overrideReason) {
+    logger.warn(
+      { orderId: input.order.id, overrideReason },
+      'deterministic guard overrode LLM verdict to reject',
+    );
+    parsed.verdict = 'reject';
+    parsed.autoMerge = false;
+    parsed.reviewComment =
+      `> ⚠️ サーバ側の決定的ガードにより reject に倒しました: ${overrideReason}\n\n` +
+      parsed.reviewComment;
+  }
+
+  // Post the review outcome to the PR EXACTLY ONCE, from the final verdict.
+  // Tries a formal APPROVE/REQUEST_CHANGES review first; on failure (own-PR 422,
+  // or token without pull_requests:write 403) falls back to a plain PR comment
+  // so the AI review is ALWAYS visible regardless of who authored the PR.
+  let didSubmitReview = false;
+  {
     const event = parsed.verdict === 'approve' ? 'APPROVE' : 'REQUEST_CHANGES';
     const body = parsed.reviewComment?.trim()
       ? parsed.reviewComment
       : buildFallbackComment(parsed, input);
-    logger.warn(
-      { orderId: input.order.id, verdict: parsed.verdict },
-      'model did not call submitReviewComment; posting from server',
-    );
     try {
       await submitReview({
         repository: input.repository,
@@ -270,10 +282,27 @@ export async function runReview(
       });
       didSubmitReview = true;
     } catch (err) {
-      logger.error(
+      logger.warn(
         { err: String(err), orderId: input.order.id },
-        'fallback submitReview failed',
+        'submitReview failed; falling back to a plain PR comment',
       );
+      const header =
+        event === 'APPROVE'
+          ? '✅ **Review passed** — Agentic Gig-Flow（formal review を投稿できないため comment として記録）'
+          : '❌ **Review needs changes** — Agentic Gig-Flow（formal review を投稿できないため comment として記録）';
+      try {
+        await createPrComment({
+          repository: input.repository,
+          prNumber: input.prNumber,
+          body: `${header}\n\n${body}`,
+        });
+        didSubmitReview = true;
+      } catch (commentErr) {
+        logger.error(
+          { err: String(commentErr), orderId: input.order.id },
+          'failed to post review outcome (review and comment both failed)',
+        );
+      }
     }
   }
 
@@ -323,6 +352,44 @@ export async function runReview(
   });
 
   return parsed;
+}
+
+/**
+ * Code-side guards that run AFTER the LLM verdict and can only ever make the
+ * outcome STRICTER (force reject), never approve. Returns a human-readable
+ * reason when it overrides to reject, or undefined to leave the verdict as-is.
+ *
+ * Currently enforces: if an acceptance criterion requires tests but the diff
+ * adds no test file, reject — regardless of what the LLM concluded. This is the
+ * deterministic backstop for the observed false-approve where the model
+ * rationalised a missing test as "acceptable".
+ */
+export function enforceDeterministicGuards(
+  parsed: ReviewAgentOutput,
+  input: ReviewAgentInput,
+  diff: string,
+): string | undefined {
+  if (parsed.verdict !== 'approve') return undefined;
+
+  const wantsTests = input.order.acceptanceCriteria.some((c) =>
+    /テスト|test|spec/i.test(c),
+  );
+  if (!wantsTests) return undefined;
+
+  // A test file is added when a `+++ b/...test|spec...` or `tests/` path appears
+  // on an added-file line of the unified diff.
+  const addsTestFile = diff
+    .split('\n')
+    .some(
+      (line) =>
+        /^\+\+\+ /.test(line) &&
+        /(\.test\.|\.spec\.|(^|\/)(tests?|__tests__)\/)/i.test(line),
+    );
+
+  if (!addsTestFile) {
+    return 'テスト追加が検収基準にあるが、diff にテストファイルの追加が見つからない';
+  }
+  return undefined;
 }
 
 function buildFallbackComment(
