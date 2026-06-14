@@ -1,7 +1,13 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { AuthExpiredError, listOrders } from '@/lib/api';
+import {
+  AuthExpiredError,
+  listOrders,
+  listOrderEvents,
+  type OrderEvent,
+} from '@/lib/api';
 import { txUrl } from '@/lib/explorer';
+import { OrderTimeline } from '@/components/order-timeline';
 
 type OrderRow = {
   id: string;
@@ -39,6 +45,16 @@ export default async function OrderDetailPage({
   const order = orders.find((o) => o.id === id);
   if (!order) {
     return <main>order not found</main>;
+  }
+
+  // Lifecycle events drive the timeline + AI-review evidence. Best-effort: the
+  // page still renders if the events endpoint is unavailable.
+  let events: OrderEvent[] = [];
+  try {
+    ({ events } = await listOrderEvents(id));
+  } catch (err) {
+    if (err instanceof AuthExpiredError) redirect('/api/auth/signin');
+    // non-fatal: fall through with an empty timeline
   }
   return (
     <main className="space-y-4">
@@ -86,6 +102,9 @@ export default async function OrderDetailPage({
           </>
         )}
       </dl>
+
+      {events.length > 0 && <OrderTimeline events={events} />}
+
       {order.bookkeepingArtifacts && (
         <section className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm">
           <h3 className="mb-2 font-medium">経理処理</h3>
