@@ -88,6 +88,26 @@ export async function createOrder(body: {
   return res.json();
 }
 
+export type OrderEvent = {
+  id: string;
+  orderId: string;
+  agent?: string;
+  type: string;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export async function listOrderEvents(
+  orderId: string,
+): Promise<{ events: OrderEvent[] }> {
+  const res = await authedFetch(
+    `/api/orders/${encodeURIComponent(orderId)}/events`,
+  );
+  if (res.status === 404) return { events: [] };
+  if (!res.ok) throw new Error(`events failed: ${res.status}`);
+  return res.json();
+}
+
 export function functionsBaseUrl(): string {
   return FUNCTIONS_BASE_URL;
 }
