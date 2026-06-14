@@ -77,6 +77,15 @@ export function createFakeCosmos(
           `invalid transition: ${current.status} -> ${nextStatus}`,
         );
       }
+      // Model Cosmos' etag optimistic concurrency: a claim into a one-shot state
+      // (settling/settled) must observe a real state change, so two concurrent
+      // claimers can't both succeed. Mirrors the real IfMatch 412 the production
+      // transitionOrder relies on for the settlement race guard.
+      if (current.status === nextStatus) {
+        throw new Error(
+          `etag_conflict: ${id} already ${nextStatus} (concurrent claim)`,
+        );
+      }
       const next: Order = {
         ...current,
         ...patch,

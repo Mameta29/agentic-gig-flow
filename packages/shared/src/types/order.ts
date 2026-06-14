@@ -7,6 +7,7 @@ export const orderStatuses = [
   'pr_opened',
   'review_failed',
   'review_passed',
+  'settling',
   'settled',
   'bookkept',
   'cancelled',
@@ -82,7 +83,15 @@ const transitions: Record<OrderStatus, OrderStatus[]> = {
   in_progress: ['pr_opened', 'review_passed', 'review_failed', 'cancelled'],
   pr_opened: ['review_passed', 'review_failed', 'settled', 'cancelled'],
   review_failed: ['pr_opened', 'review_passed', 'cancelled'],
-  review_passed: ['settled', 'pr_opened', 'cancelled'],
+  // `settling` is the atomic claim taken just before the JPYC transfer. Only
+  // one concurrent settlement can win the `review_passed -> settling` etag race;
+  // the loser fails `canTransition` (status is no longer `review_passed`) and
+  // bails before spending. This is what makes double-send structurally
+  // impossible rather than merely unlikely.
+  review_passed: ['settling', 'settled', 'pr_opened', 'cancelled'],
+  // `settling -> review_passed` lets a failed transfer roll the claim back so a
+  // retry can settle. `settling -> settled` is the success path.
+  settling: ['settled', 'review_passed', 'cancelled'],
   settled: ['bookkept', 'review_passed'],
   bookkept: [],
   cancelled: [],
