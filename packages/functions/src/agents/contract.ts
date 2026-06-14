@@ -409,5 +409,6 @@ function tenantRepos(
   const list = new Set<string>();
   if (override) list.add(override);
   if (tenant?.defaultRepository) list.add(tenant.defaultRepository);
+  for (const r of tenant?.allowedRepositories ?? []) list.add(r);
   return [...list];
 }

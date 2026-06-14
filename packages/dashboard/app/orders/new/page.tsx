@@ -13,8 +13,16 @@ const KNOWN_WORKERS = [
     githubLogin: 'ei-chan-bot',
     note: 'デモ用フリーランサー (GitHub: ei-chan-bot)',
   },
+  {
+    displayName: 'Mameta29',
+    githubLogin: 'Mameta29',
+    note: 'dogfooding: 開発者本人 (seed-dogfood.ts で登録)',
+  },
 ];
-const KNOWN_REPOSITORIES = ['Mameta29/gigflow-demo-workspace'];
+const KNOWN_REPOSITORIES = [
+  'Mameta29/gigflow-demo-workspace',
+  'Mameta29/agentic-gig-flow',
+];
 
 // Sample prompts that include every field Contract Agent needs to succeed:
 // worker name, amount (JPYC), deadline (relative), description, repository.
@@ -33,6 +41,11 @@ const SAMPLES: { label: string; text: string }[] = [
     label: 'リファクタ / 8万 JPYC / 3週間後',
     text:
       'Sato さんに 認証ミドルウェアのリファクタリング を 80,000 JPYC で 3週間後 までお願いします。リポジトリは Mameta29/gigflow-demo-workspace。受け入れ基準: 既存テストがすべて通る、新規ユニットテスト追加。',
+  },
+  {
+    label: '【dogfood】Dashboard改善 / 5万 JPYC / 1週間後',
+    text:
+      'Mameta29 さんに Dashboard 経理確認画面の UI/UX 改善 を 50,000 JPYC で 1週間後 までお願いします。リポジトリは Mameta29/agentic-gig-flow。受け入れ基準: 既存テストがすべて通る、CI が通過している、変更がレビュー基準を満たす。',
   },
 ];
 
