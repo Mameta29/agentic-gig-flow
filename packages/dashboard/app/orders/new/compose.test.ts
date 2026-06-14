@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { composeOrderText, validateOrderForm } from './compose';
+import {
+  composeOrderText,
+  validateOrderForm,
+  MAX_AMOUNT_JPYC,
+} from './compose';
 
 describe('validateOrderForm', () => {
   const ok = { amountJpyc: '50000', description: 'ログイン機能' };
@@ -21,6 +25,20 @@ describe('validateOrderForm', () => {
     expect(validateOrderForm({ ...ok, amountJpyc: '' }).valid).toBe(false);
   });
 
+  it('rejects an amount over the per-order limit', () => {
+    const r = validateOrderForm({
+      ...ok,
+      amountJpyc: String(MAX_AMOUNT_JPYC + 1),
+    });
+    expect(r.valid).toBe(false);
+    expect(r.amountError).toContain('上限');
+  });
+
+  it('accepts an amount exactly at the limit', () => {
+    expect(
+      validateOrderForm({ ...ok, amountJpyc: String(MAX_AMOUNT_JPYC) }).valid,
+    ).toBe(true);
+  });
 });
 
 describe('composeOrderText', () => {

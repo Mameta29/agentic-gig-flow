@@ -68,6 +68,9 @@ export function validateOrderForm(input: {
   if (!raw || !Number.isInteger(amount) || amount <= 0) {
     result.amountError = '金額は1以上の整数を入力してください。';
     result.valid = false;
+  } else if (amount > MAX_AMOUNT_JPYC) {
+    result.amountError = `金額は上限 ${MAX_AMOUNT_JPYC.toLocaleString('en-US')} JPYC 以下にしてください。`;
+    result.valid = false;
   }
 
   if (!input.description.trim()) {
