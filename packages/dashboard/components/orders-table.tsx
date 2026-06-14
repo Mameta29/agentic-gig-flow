@@ -40,6 +40,7 @@ function matchesFilter(status: string, filter: string): boolean {
 
 export function OrdersTable({ orders }: { orders: OrderRow[] }) {
   const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState('');
 
   // Summary is computed over ALL orders (not the filtered view) so the headline
   // numbers stay stable as the user filters.
@@ -53,10 +54,18 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
     };
   }, [orders]);
 
-  const visible = useMemo(
-    () => orders.filter((o) => matchesFilter(o.status, filter)),
-    [orders, filter],
-  );
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (!matchesFilter(o.status, filter)) return false;
+      if (!q) return true;
+      // Search by business description and worker login.
+      return (
+        o.description.toLowerCase().includes(q) ||
+        o.workerGithubLogin.toLowerCase().includes(q)
+      );
+    });
+  }, [orders, filter, query]);
 
   return (
     <div className="space-y-4">
@@ -75,7 +84,7 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
         />
       </div>
 
-      {/* Filter chips */}
+      {/* Filter chips + search */}
       <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
           <button
@@ -91,6 +100,13 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
             {f.label}
           </button>
         ))}
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="業務内容・受注者で検索"
+          aria-label="検索"
+          className="ml-auto w-56 max-w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-[var(--gigflow-blue)] focus:outline-none"
+        />
       </div>
 
       {/* Table */}
