@@ -157,6 +157,71 @@ describe('runSettlement', () => {
     expect(transfer).not.toHaveBeenCalled();
   });
 
+  it('sends exactly once when two settlements race the same order', async () => {
+    // Reproduces the dogfood #1 double-send: the local driver and the
+    // closed(merged) webhook both fired settlement ~1.5s apart and both passed
+    // the old read-then-act idempotency check, sending 1000 JPYC twice. With the
+    // atomic review_passed -> settling claim, only one can win.
+    const cosmos = createFakeCosmos(TENANT);
+    await cosmos.upsertOrder(buildOrder());
+
+    // A slow transfer guarantees both callers get past the initial read+checks
+    // before either completes, i.e. a genuine race rather than sequential calls.
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    const transfer = vi.fn().mockImplementation(async () => {
+      await gate;
+      return {
+        txHash: '0xrace',
+        blockNumber: 1n,
+        from: '0xfrom',
+        to: '0xto',
+        amountJpyc: 50_000,
+      };
+    });
+
+    const run = () =>
+      runSettlement(
+        {
+          tenantId: TENANT,
+          orderId: 'order-1',
+          prMergeEvent: { prNumber: 1, mergeCommitSha: '', mergedAt: '' },
+        },
+        { cosmos, transferJpyc: transfer },
+      );
+
+    // Attach catch handlers immediately so the losing promise's rejection is
+    // never momentarily unhandled (vitest flags unhandled rejections as errors).
+    const a = run().then(
+      (v) => ({ ok: true as const, v }),
+      (e) => ({ ok: false as const, e }),
+    );
+    const b = run().then(
+      (v) => ({ ok: true as const, v }),
+      (e) => ({ ok: false as const, e }),
+    );
+    // Let both reach (and one win) the atomic claim, then let the transfer finish.
+    await new Promise((r) => setTimeout(r, 0));
+    release();
+    const settled = await Promise.all([a, b]);
+    const results = settled.map((s) =>
+      s.ok
+        ? { status: 'fulfilled' as const }
+        : { status: 'rejected' as const },
+    );
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    // The decisive assertion: money moved exactly once.
+    expect(transfer).toHaveBeenCalledTimes(1);
+
+    const updated = await cosmos.getOrder('order-1');
+    expect(updated?.status).toBe('settled');
+    expect(updated?.txHash).toBe('0xrace');
+  });
+
   it('rejects when status is not review_passed', async () => {
     const cosmos = createFakeCosmos(TENANT);
     await cosmos.upsertOrder(buildOrder({ status: 'pr_opened' }));

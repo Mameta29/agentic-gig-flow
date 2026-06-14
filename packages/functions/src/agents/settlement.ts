@@ -142,9 +142,12 @@ export async function runSettlement(
   const order = await cosmos.getOrder(input.orderId);
   if (!order) throw new Error(`order_not_found: ${input.orderId}`);
 
-  // Idempotency: refuse if already settled (txHash present or status >= settled).
+  // Idempotency (fast path): refuse if already settled. This is a cheap read
+  // that short-circuits obvious duplicates; the real concurrency guard is the
+  // atomic claim below.
   if (
     order.txHash ||
+    order.status === 'settling' ||
     order.status === 'settled' ||
     order.status === 'bookkept'
   ) {
@@ -156,6 +159,23 @@ export async function runSettlement(
   }
 
   await preTransferChecks(order, cosmos, now());
+
+  // Atomic claim: move review_passed -> settling under the order's etag BEFORE
+  // any money moves. Two concurrent settlements (e.g. the local driver and the
+  // closed(merged) webhook) both read `review_passed`, but only one wins this
+  // transition — the other fails canTransition (status is no longer
+  // review_passed) or the etag IfMatch (412) and is rejected here, before the
+  // transfer. This closes the read-then-act (TOCTOU) race that previously let a
+  // double-send through, making duplicate settlement structurally impossible.
+  try {
+    await cosmos.transitionOrder(order.id, 'settling', {});
+  } catch (err) {
+    logger.warn(
+      { err: String(err), orderId: order.id },
+      'settlement claim lost (concurrent settlement already in progress)',
+    );
+    throw new Error('already_settling');
+  }
 
   await cosmos.appendEvent({
     orderId: order.id,
@@ -180,6 +200,17 @@ export async function runSettlement(
     });
   } catch (err) {
     logger.error({ err, orderId: order.id }, 'settlement transfer failed');
+    // Release the claim so a later retry can settle. Best-effort: if even this
+    // fails, the order stays in `settling` and requires manual inspection
+    // (preferable to silently re-opening the claim on a possibly-sent tx).
+    try {
+      await cosmos.transitionOrder(order.id, 'review_passed', {});
+    } catch (rollbackErr) {
+      logger.error(
+        { err: String(rollbackErr), orderId: order.id },
+        'failed to roll settling claim back to review_passed',
+      );
+    }
     await cosmos.appendEvent({
       orderId: order.id,
       agent: 'settlement',
